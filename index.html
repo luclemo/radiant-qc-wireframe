@@ -304,6 +304,8 @@ function overview() {
 const DEPTHS = [5, 15, 30, 50, 100, 200, 300, 400, 500, 1000];
 const NAME = { p: 'Pass', w: 'Warning', f: 'Fail', u: 'Unmappable' };
 const ORDER = ['f', 'w', 'u', 'p'];
+// Exon detail (row accordion) is a later release: hidden for the demo, kept so it can come back
+const EXON_DETAIL = false;
 const UP = ['BRCA1', 'NF1', 'CFTR', 'AKR1B15', 'ACKR4', 'TMIE', 'SOX4', 'CACNA1A', 'BRCA3'];
 const KNOWN = new Set(DATA.genes.map((g) => g[0]));
 
@@ -404,7 +406,7 @@ function genes() {
       return '<td class="num r" style="' + (k ? TINT[k] : crit ? 'color:var(--ink)' : 'color:var(--muted)') + (crit ? ';font-weight:650' + (allDepths ? ';' + FRAME : '') : '') + '">' + pct1(v) + '</td>';
     }).join('');
     let exon = '';
-    if (open) {
+    if (open && EXON_DETAIL) {
       const ex = x.gene === 'AKR1B15'
         ? AKR.map(([bp, c], i) => { const bad = c * P.cov_f < DEPTHS[depthIdx]; return '<span style="flex:' + bp + ' 1 0;background:' + (bad ? '#f4b4ae' : '#bfe5cb') + ';color:' + (bad ? '#b42318' : '#1b6b38') + (bad ? ';box-shadow:inset 0 0 0 2px #b42318' : '') + '">' + (i + 1) + ' · ' + Math.round(c * P.cov_f) + 'x</span>'; })
         : [3, 2, 4, 2, 3, 5].map((w, i) => '<span style="flex:' + w + ' 1 0;background:#e6e9ec;color:var(--muted)">' + (i + 1) + '</span>');
@@ -415,7 +417,7 @@ function genes() {
       + '<td><span class="gc"><strong>' + esc(x.gene) + '</strong><span>' + (x.s !== 'p' ? '<span class="pill ' + x.s + '">' + NAME[x.s] + '</span>' : '') + '</span></span></td>'
       + '<td class="num r">' + x.size.toLocaleString('en-CA') + '</td><td class="num r">' + x.mean.toFixed(1) + 'x</td>' + cells
       + '<td style="white-space:nowrap"><a href="#genes" class="tl">SNV</a> · <a href="#genes" class="tl">CNV</a> · <a href="#genes" class="tl">IGV</a></td>'
-      + '<td><button type="button" class="chev" aria-expanded="' + open + '" aria-label="' + (open ? 'Hide' : 'Show') + ' exon detail for ' + esc(x.gene) + '" data-act="exon" data-g="' + esc(x.gene) + '">' + (open ? '▾' : '▸') + '</button></td></tr>' + exon;
+      + (EXON_DETAIL ? '<td><button type="button" class="chev" aria-expanded="' + open + '" aria-label="' + (open ? 'Hide' : 'Show') + ' exon detail for ' + esc(x.gene) + '" data-act="exon" data-g="' + esc(x.gene) + '">' + (open ? '▾' : '▸') + '</button></td>' : '') + '</tr>' + exon;
   }).join('');
   const total = base.length, nSel = selected.length;
   const panelNames = Object.keys(DATA.panels);
@@ -452,7 +454,7 @@ function genes() {
     + '<div class="scroll" style="border-top:1px solid var(--line)"><table class="tbl gtbl"><thead><tr>'
     + '<th style="width:28px"><button type="button" class="cb" role="checkbox" aria-checked="' + pageCheck + '" aria-label="Select all rows on this page" data-act="selPage">' + (pageFull ? '✓' : pageSome ? '–' : '') + '</button></th>'
     + head('gene', 'Gene') + head('size', 'Size (bp)', 'r') + head('mean', 'Mean cov.', 'r') + depthHeads
-    + '<th>Open in</th><th style="width:40px"><span style="position:absolute;left:-9999px">Exon detail</span></th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+    + '<th>Open in</th>' + (EXON_DETAIL ? '<th style="width:40px"><span style="position:absolute;left:-9999px">Exon detail</span></th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table></div>'
     + (list.length ? '' : '<p style="margin:0;padding:20px;color:var(--muted)">No gene matches these filters.</p>')
     + '<div class="row-between" style="padding:10px 20px;border-top:1px solid var(--line-soft);font-size:13px;color:var(--muted)"><span>' + (list.length ? 'Results ' + (pg * PER + 1) + ' - ' + (pg * PER + slice.length) + ' of ' + list.length : '') + '</span><div style="display:flex;gap:8px"><button type="button" class="btn" data-act="page" data-d="-1"' + (pg === 0 ? ' disabled' : '') + '>Previous</button><button type="button" class="btn" data-act="page" data-d="1"' + (pg >= pages - 1 ? ' disabled' : '') + '>Next</button></div></div>'
     + '</section>';
