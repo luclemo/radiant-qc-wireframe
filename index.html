@@ -178,7 +178,7 @@ const vs = (st, text, title) => (!st || st === 'p')
 
 // ---------- State ----------
 const DEFAULT_GC = () => ({ sample: 'proband', depthIdx: 1, cutoff: 1, q: '', panel: '', uploaded: false, statusF: '', page: 0, allDepths: false, open: { AKR1B15: true }, selMode: 'picked', selIds: {}, sorts: [] });
-const DEFAULT = () => ({ view: 'overview', identity: 'fail', family: 'quatuor', fetal: false, lang: 'en', demoOpen: true, ov: { open: false }, gc: DEFAULT_GC(), tech: { sample: 'proband', showKeys: false } });
+const DEFAULT = () => ({ view: 'overview', identity: 'pass', family: 'trio', fetal: false, lang: 'fr', demoOpen: true, ov: { open: false }, gc: DEFAULT_GC(), tech: { sample: 'proband', showKeys: false } });
 let S = DEFAULT();
 const VIEWS = ['overview', 'genes', 'metrics'];
 
