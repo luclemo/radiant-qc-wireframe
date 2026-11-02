@@ -1,0 +1,928 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QC Tab Prototype</title>
+<style>
+/* Layout: the case page as it ships (header, tabs, sub-views), one column of cards, prototype controls floating bottom-right */
+/* Single light theme on purpose: it mocks the product's light UI */
+:root{
+  --bg:#f3f5f7; --surface:#fff; --line:#d9dee3; --line-soft:#eceff2; --ink:#1f2933; --muted:#5b6670; --faint:#9aa4ad;
+  --pass-bg:#e3f4e8; --pass-fg:#1b6b38; --warn-bg:#fdf0d5; --warn-fg:#8a5a00; --fail-bg:#fde4e4; --fail-fg:#b42318; --unm-bg:#e6e9ec; --unm-fg:#4a545d;
+  --bar-p:#8fd1a5; --bar-w:#f0c25a; --bar-f:#e5736a; --bar-u:#9aa4ad;
+  --zone-p:#bfe5cb; --zone-w:#f6d98f; --zone-f:#f4b4ae;
+  --demo:#3b4cca; --demo-bg:#eef0ff;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; --mono:ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 var(--font)}
+.page{max-width:1280px;margin:0 auto;padding-block:24px 96px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:16px}
+@media (min-width:900px){.page{padding-left:max(32px,env(safe-area-inset-left,0px));padding-right:max(32px,env(safe-area-inset-right,0px))}}
+a{color:inherit}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px 20px;min-width:0}
+.h2{margin:0;font-size:17px;font-weight:650}
+.h3{margin:0;font-size:15px;font-weight:650}
+.sub{margin:2px 0 0;font-size:13px;color:var(--muted)}
+.cap{margin:18px 0 0;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.num{font-variant-numeric:tabular-nums}
+.r,.tbl th.r{text-align:right}
+.row-between{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.p{background:var(--pass-bg);color:var(--pass-fg)}.w{background:var(--warn-bg);color:var(--warn-fg)}.f{background:var(--fail-bg);color:var(--fail-fg)}.u{background:var(--unm-bg);color:var(--unm-fg)}
+.ghost{background:var(--unm-bg);color:var(--muted)}
+/* Value + status in one chip: Pass stays a plain value; the icon hangs left so values still line up */
+.vs{display:inline-flex;align-items:center;gap:5px;padding:2px 8px 2px 6px;margin:-2px 0 -2px -25px;border-radius:6px;font-weight:600;white-space:nowrap}
+.vs svg{flex:none}
+.tbl .vc{padding-left:34px}
+.btn{font-weight:600;font-size:13px;padding:7px 12px;border:1px solid #c5ccd3;border-radius:6px;background:var(--surface);color:var(--ink);text-decoration:none;display:inline-flex;align-items:center;gap:6px;cursor:pointer;min-height:34px}
+.btn[aria-current="page"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn[disabled]{opacity:.5;cursor:default}
+.lnk{font-weight:600;font-size:13px;color:var(--ink);background:none;border:0;padding:6px 4px;text-decoration:underline;cursor:pointer}
+.scroll{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;font-size:12px;font-weight:600;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:bottom;white-space:nowrap}
+.tbl td{padding:8px 10px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+.fld{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--muted)}
+.in{font-weight:400;font-size:14px;color:var(--ink);border:1px solid #c5ccd3;border-radius:6px;padding:7px 10px;background:var(--surface);min-height:36px}
+.key{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink)}
+.key i{display:inline-block;width:16px;height:8px;border-radius:2px}
+.tip{position:relative;display:inline-flex;vertical-align:middle}
+.tip>button{background:none;border:0;padding:4px;margin:-4px 0;color:var(--muted);cursor:help;display:inline-flex;border-radius:4px}
+.bubble{display:none;position:absolute;top:100%;left:-8px;z-index:5;width:300px;margin-top:6px;padding:10px 12px;background:var(--ink);color:#fff;border-radius:6px;font-size:12.5px;line-height:1.5;font-weight:400;text-transform:none;letter-spacing:0;white-space:normal;text-align:left}
+.bubble.right{left:auto;right:-8px}
+.bubble span{display:block}
+.tip:hover .bubble,.tip:focus-within .bubble{display:block}
+
+/* Case header + tabs */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tabs>span{padding:10px 14px;font-size:14px;color:var(--muted)}
+.tabs .on{color:var(--ink);font-weight:650;border-bottom:2px solid var(--ink);display:flex;gap:6px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--fail-fg);display:inline-block}
+.alert{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-start;background:var(--fail-bg);border:1px solid #f0b4ae;border-radius:8px;padding:14px 18px}
+.alert>div{flex:1 1 420px;min-width:0}
+.alert b{color:var(--fail-fg)}
+
+/* Threshold scales (overview) */
+.ms{position:relative;display:inline-block;width:80px;height:6px;border-radius:3px;overflow:hidden;vertical-align:middle}
+.ms i,.fs i{position:absolute;top:0;bottom:0}
+.msw{position:relative;display:inline-block;width:80px;height:12px;vertical-align:middle;margin-left:8px}
+.msw .ms{position:absolute;left:0;top:3px}
+.msw b{position:absolute;top:0;width:2px;height:12px;background:var(--ink);margin-left:-1px}
+.fsw{position:relative;display:inline-block;width:240px;height:18px;vertical-align:middle}
+.fs{position:absolute;left:0;top:4px;width:240px;height:10px;border-radius:2px;overflow:hidden}
+.fsw b{position:absolute;top:0;width:2px;height:18px;background:var(--ink);margin-left:-1px}
+.tk{position:relative;display:block;width:240px;height:14px;margin-top:4px;font-weight:400}
+.tk span{position:absolute;top:0;transform:translateX(-50%);font-size:11px;color:var(--muted)}
+.tk span:first-child{transform:none}.tk span:last-child{transform:translateX(-100%)}
+.ped{position:relative;width:520px;height:196px;margin:0 auto}
+.ped .ln{position:absolute;background:var(--muted)}
+.ped .nd{position:absolute;width:34px;height:34px}
+.ped .lb{position:absolute;width:120px;text-align:center;font-size:13px;line-height:1.3}
+.ped .ar{position:absolute;font-size:18px}
+.dim{opacity:.55}
+
+/* Gene coverage */
+.seg{font-size:13px;border:1px solid #c5ccd3;border-radius:999px;background:var(--surface);padding:5px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;min-height:32px}
+.seg[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.seg i{display:inline-block;width:12px;height:8px;border-radius:2px}
+.gtbl{min-width:760px}
+.sb{background:none;border:0;padding:4px 2px;margin:-4px -2px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;border-radius:4px;white-space:nowrap;font-weight:600;font-size:12px;color:var(--muted)}
+.sb:hover,.sb[data-on="true"]{color:var(--ink)}
+.sb i{font-style:normal;font-size:12px;width:12px;visibility:hidden}
+th:hover .sb i,.sb:focus-visible i,.sb[data-on="true"] i{visibility:visible}
+.cb{width:16px;height:16px;padding:0;border:1.5px solid var(--muted);border-radius:3px;background:var(--surface);color:#fff;font:700 11px/1 var(--font);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle}
+.cb[aria-checked="true"],.cb[aria-checked="mixed"]{background:var(--ink);border-color:var(--ink)}
+.gc{display:grid;grid-template-columns:132px auto;align-items:center;gap:8px;white-space:nowrap}
+.gc .pill{font-size:11.5px;padding:2px 7px}
+.chev{background:none;border:0;cursor:pointer;width:32px;height:32px;border-radius:6px;font-size:14px}
+.chev:hover{background:var(--line-soft)}
+.ex{display:flex;gap:3px;height:26px;margin-top:10px}
+.ex span{display:flex;align-items:center;justify-content:center;font:600 11px var(--mono);border-radius:3px;min-width:0;overflow:hidden;white-space:nowrap}
+.dash{border:1px dashed var(--faint);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--muted)}
+
+/* Metric details */
+.grid3{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(360px,100%),1fr));gap:16px;align-items:start}
+.src{font-size:11px;font-weight:600;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:1px 6px;white-space:nowrap}
+.dl{margin:10px 0 0;display:flex;flex-direction:column}
+.mrow{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;padding:6px 0;border-bottom:1px solid #f0f2f4}
+.mrow:last-child{border-bottom:0}
+.mrow dt{flex:1 1 150px;min-width:0}
+.mrow dd{margin:0;display:flex;flex-direction:column;align-items:flex-end;gap:1px;white-space:nowrap}
+.mrow dd>span:first-child{display:inline-flex;align-items:center;gap:8px}
+.mrow.fw{background:#fffaf0;margin:0 -8px;padding:6px 8px}.mrow.ff{background:#fff7f6;margin:0 -8px;padding:6px 8px}
+.mkey{font:12.5px var(--mono);overflow-wrap:anywhere}
+.rule{font-size:12px}
+
+/* Prototype controls: visibly not part of the design */
+.demo{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:max(16px,env(safe-area-inset-bottom,0px));z-index:20;width:280px;max-width:calc(100vw - 32px);background:var(--surface);border:1.5px dashed var(--demo);border-radius:10px;box-shadow:0 6px 24px rgba(31,41,51,.18);font-size:13px}
+.demo header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px 8px 12px;background:var(--demo-bg);border-radius:9px 9px 0 0;color:var(--demo);font-weight:700;font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+.demo header button{background:none;border:0;color:var(--demo);cursor:pointer;font-weight:600;font-size:12px;padding:4px 6px;border-radius:4px}
+.demo .body{padding:10px 12px 12px;display:flex;flex-direction:column;gap:10px}
+.demo .opt{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:12px;color:var(--muted)}
+.demo .sg{display:flex;border:1px solid #c5ccd3;border-radius:6px;overflow:hidden}
+.demo .sg button{flex:1;border:0;background:var(--surface);padding:6px 8px;cursor:pointer;font-size:13px}
+.demo .sg button+button{border-left:1px solid #c5ccd3}
+.demo .sg button[aria-pressed="true"]{background:var(--demo);color:#fff}
+.demo .hint{margin:0;font-size:11.5px;color:var(--muted)}
+.demo-min{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:max(16px,env(safe-area-inset-bottom,0px));z-index:20;border:1.5px dashed var(--demo);background:var(--demo-bg);color:var(--demo);border-radius:999px;padding:6px 12px;font-weight:700;font-size:12px;cursor:pointer}
+@media (prefers-reduced-motion:no-preference){.btn,.seg,.sb{transition:background-color .12s,color .12s}}
+</style>
+</head>
+<body>
+
+<div id="app" class="page"></div>
+<div id="demo"></div>
+
+<script>
+const DATA = {"genes":[["AANAT",615,201.5,[10000,10000,10000,10000,9902,5561,0,0,0,0]],["ABRAXAS2",1227,191.5,[10000,10000,10000,10000,8696,5403,179,0,0,0]],["ACKR4",1048,49.9,[8368,5448,4208,3645,2080,0,0,0,0,0]],["ACTR3",1230,129.1,[10000,10000,10000,10000,7480,333,57,0,0,0]],["ADPRM",1020,159.6,[10000,10000,10000,10000,9549,2745,0,0,0,0]],["AKR1B15",1012,144.3,[8538,8538,8468,7500,7431,3004,0,0,0,0]],["AKR1C2",951,119.6,[9296,7518,6677,5762,5247,2324,641,0,0,0]],["ALG1L2",629,135.3,[7091,7091,7091,7091,6645,3529,0,0,0,0]],["ALPG",1574,272.0,[10000,9320,8844,8793,8640,7618,5241,572,19,0]],["ANKH",1452,176.7,[10000,10000,10000,10000,9353,2555,799,0,0,0]],["ANKRD63",1138,171.7,[10000,10000,10000,10000,9965,2118,0,0,0,0]],["APC",8499,165.6,[10000,10000,10000,10000,9527,2079,0,0,0,0]],["ASB1",995,211.4,[10000,10000,10000,10000,10000,6211,342,0,0,0]],["ASCL2",577,177.6,[10000,10000,10000,10000,9705,2444,0,0,0,0]],["BRCA1",5545,143.7,[10000,9996,9964,9949,8680,1098,22,0,0,0]],["BRCA2",10202,156.7,[10000,10000,10000,10000,9391,1469,4,0,0,0]],["BRME1",1988,205.2,[10000,10000,10000,10000,9965,5498,101,0,0,0]],["C4BPA",1769,157.7,[10000,10000,10000,10000,9333,1317,0,0,0,0]],["C9orf131",3233,211.1,[10000,10000,10000,10000,10000,5641,229,0,0,0]],["CABIN1",6588,200.7,[10000,10000,10000,10000,9775,4516,568,0,0,0]],["CACNA1A",7424,175.1,[9815,9815,9815,9815,9142,3370,104,0,0,0]],["CASP8AP2",5876,136.8,[10000,10000,10000,10000,8919,260,0,0,0,0]],["CATSPER2",1566,133.3,[10000,9987,9706,9010,6858,1341,0,0,0,0]],["CAV1",528,179.3,[10000,10000,10000,10000,9810,3257,0,0,0,0]],["CCDC148",1745,143.5,[10000,10000,10000,10000,9238,562,0,0,0,0]],["CCDC195",597,146.1,[10000,10000,10000,10000,9246,0,0,0,0,0]],["CCDC91",1299,121.2,[10000,10000,10000,10000,6420,123,0,0,0,0]],["CCND1",875,235.0,[10000,10000,10000,10000,10000,7120,1326,0,0,0]],["CCNE2",1190,168.6,[10000,10000,10000,10000,8916,3101,0,0,0,0]],["CCNP",911,210.9,[10000,10000,10000,10000,9857,6257,165,0,0,0]],["CCZ1B",1416,55.5,[6624,5650,4534,4138,2380,64,0,0,0,0]],["CDC26",251,102.9,[10000,10000,8207,6374,3147,2829,0,0,0,0]],["CDV3",764,158.6,[10000,10000,10000,9398,7722,2487,563,0,0,0]],["CELA3B",794,185.2,[9899,8942,8942,8778,8778,4144,592,0,0,0]],["CFTR",4386,176.6,[10000,9970,9893,9795,9460,3069,98,0,0,0]],["CH507-42P11.1",376,0.0,[0,0,0,0,0,0,0,0,0,0]],["CHMP2A",656,213.3,[10000,10000,10000,10000,10000,6692,305,0,0,0]],["CITED4",550,72.0,[10000,10000,8436,7345,3345,0,0,0,0,0]],["CLECL1",497,155.5,[10000,10000,10000,10000,9980,1127,0,0,0,0]],["CORO1A",1363,168.8,[9266,9266,9266,9266,8122,3228,910,0,0,0]],["CT45A6",559,0.0,[0,0,0,0,0,0,0,0,0,0]],["CT47A10",860,0.0,[0,0,0,0,0,0,0,0,0,0]],["CTAG1A",534,0.0,[0,0,0,0,0,0,0,0,0,0]],["CTBP2",2937,182.2,[9629,9571,9571,9571,9268,3742,289,0,0,0]],["CTD-2192J16.17",1915,188.1,[10000,10000,10000,10000,9671,3927,606,0,0,0]],["CTD-3051L14.15",2016,162.8,[9306,9306,9306,9306,8953,3100,0,0,0,0]],["CXCR5",1112,215.2,[10000,10000,10000,10000,9568,6807,126,0,0,0]],["CYP3A5",1480,172.2,[10000,10000,10000,9939,8392,3304,155,0,0,0]],["CYP4F22",1569,181.3,[10000,10000,10000,10000,9745,3690,229,0,0,0]],["DCBLD1",2115,191.2,[10000,10000,10000,9986,9390,3967,600,0,0,0]],["DHX58",2010,175.1,[10000,10000,10000,9915,9328,3562,179,0,0,0]],["DMD",10897,125.6,[10000,10000,10000,9983,7836,43,0,0,0,0]],["DNALI1",762,190.1,[10000,10000,10000,10000,9318,4291,0,0,0,0]],["DPYSL5",1668,204.3,[10000,10000,10000,10000,9442,4940,779,0,0,0]],["EIF5AL1",460,89.0,[10000,10000,8022,4370,3152,1457,0,0,0,0]],["ELK4",1285,163.2,[10000,10000,10000,10000,9813,2140,0,0,0,0]],["EMG1",720,183.7,[10000,10000,10000,10000,10000,3180,0,0,0,0]],["EP400",9265,186.4,[9490,9353,9271,9192,8807,4570,640,0,0,0]],["EPS8L2",2105,215.1,[10000,10000,10000,10000,9986,5378,755,166,0,0]],["FAM131C",826,116.1,[10000,10000,7724,7095,4903,1961,375,0,0,0]],["FAM25C",261,37.2,[5057,5057,5057,2644,1303,0,0,0,0,0]],["FAM3B",689,171.0,[10000,10000,10000,10000,9869,2772,0,0,0,0]],["FAM86B1",974,149.2,[8162,7341,6129,5924,4825,3388,1982,986,113,0]],["FAM90A7P",1384,0.0,[0,0,0,0,0,0,0,0,0,0]],["FAM98B",1283,145.7,[9478,9291,8940,8480,7295,1738,624,0,0,0]],["FBLL1",1000,197.0,[10000,9060,8930,8760,8290,6400,530,0,0,0]],["FBN1",8483,182.7,[10000,10000,10000,10000,9705,3437,38,0,0,0]],["FCRLB",1266,178.6,[10000,10000,10000,10000,8989,3562,284,0,0,0]],["FGFBP1",700,235.1,[10000,10000,10000,10000,10000,6071,1929,0,0,0]],["FHAD1",4371,171.3,[9661,9661,9661,9661,9300,3260,18,0,0,0]],["FKBP7",658,150.6,[10000,10000,10000,10000,9392,654,0,0,0,0]],["FMO2",1589,167.4,[10000,10000,10000,10000,9069,2882,0,0,0,0]],["FNTB",1287,199.2,[10000,10000,10000,10000,9588,4981,202,0,0,0]],["FOXK2",1962,191.4,[9648,9572,9541,9439,9225,4720,515,0,0,0]],["FRMD3",1763,182.7,[10000,10000,10000,10000,9654,3709,85,0,0,0]],["GATAD1",797,144.6,[10000,10000,10000,10000,7729,1857,0,0,0,0]],["GNAO1",1046,176.2,[10000,10000,10000,9981,8518,3470,669,0,0,0]],["GOLGA8Q",1858,74.3,[6959,5011,3897,3439,2422,1685,850,0,0,0]],["GPAT2",2343,61.5,[5557,5318,5079,4306,3180,533,0,0,0,0]],["H2AB2",343,0.0,[0,0,0,0,0,0,0,0,0,0]],["H2AL1RP",442,0.0,[0,0,0,0,0,0,0,0,0,0]],["HCAR3",1159,196.6,[10000,10000,8568,7636,7015,5591,2752,0,0,0]],["HMCN2",15038,220.2,[10000,10000,10000,10000,9864,5634,1377,143,6,0]],["HOXB5",803,201.7,[10000,10000,10000,10000,10000,3250,859,0,0,0]],["IGHV3OR16-17",345,135.8,[10000,10000,8609,6783,5276,3334,0,0,0,0]],["IGLON5",992,196.9,[10000,10000,10000,10000,9788,4587,343,0,0,0]],["IL18",569,186.1,[10000,10000,10000,10000,9719,3884,0,0,0,0]],["IL24",606,164.7,[10000,10000,10000,10000,9785,2640,0,0,0,0]],["IL7R",1361,184.1,[10000,10000,10000,10000,9993,2976,0,0,0,0]],["ITPR2",7989,136.3,[10000,10000,9991,9929,7699,974,10,0,0,0]],["IVL",1753,338.9,[10000,10000,10000,10000,9755,8329,6047,3714,873,0]],["JAKMIP3",2206,244.8,[10000,10000,10000,10000,10000,6922,2208,494,0,0]],["KCNMB3",819,159.4,[10000,10000,7473,7179,6630,4445,586,0,0,0]],["KCNN2",2357,135.4,[9440,8630,8104,7683,7285,2181,0,0,0,0]],["KCNQ3",2586,187.8,[10000,10000,10000,9818,9281,4439,336,0,0,0]],["KIR2DL4",1232,279.3,[10000,10000,10000,10000,9854,8523,3953,779,0,0]],["KIRREL2",2094,188.3,[10000,10000,10000,10000,9962,3696,267,0,0,0]],["KLHDC8A",1040,187.6,[10000,10000,10000,10000,9539,4077,0,0,0,0]],["KRTAP2-2",367,80.3,[10000,10000,6866,3052,2480,1526,0,0,0,0]],["LACC1",1280,185.8,[10000,10000,10000,10000,9633,3914,195,0,0,0]],["LAT",677,168.6,[10000,10000,10000,9542,8774,2615,960,0,0,0]],["LCOR",4665,200.9,[10000,10000,10000,10000,9972,4802,23,0,0,0]],["LILRB2",1765,302.0,[10000,10000,8991,8895,8895,8317,6108,2091,453,0]],["LIPM",1251,186.1,[10000,10000,10000,10000,9808,3613,56,0,0,0]],["LPAR2",1049,188.5,[10000,10000,10000,10000,9762,2927,152,0,0,0]],["LRP10",2125,202.2,[10000,10000,10000,10000,9925,4372,584,0,0,0]],["LTA4H",1795,114.4,[10000,10000,10000,9994,7242,0,0,0,0,0]],["MAGED4",2199,0.0,[0,0,0,0,0,0,0,0,0,0]],["MECP2",1488,137.1,[10000,10000,10000,10000,8723,242,0,0,0,0]],["MED12L",6349,185.9,[10000,10000,10000,10000,9622,3679,183,0,0,0]],["MED4",796,175.5,[10000,10000,10000,10000,9183,3229,0,0,0,0]],["METTL16",1668,180.4,[10000,10000,10000,9946,9095,3573,174,0,0,0]],["METTL25",1785,134.0,[10000,10000,10000,9955,6162,1866,0,0,0,0]],["MGRN1",1694,208.3,[10000,10000,10000,10000,9864,4681,525,0,0,0]],["MIA2",4178,165.9,[10000,10000,10000,10000,9425,2161,211,0,0,0]],["MIF",339,173.8,[10000,10000,10000,10000,10000,3038,0,0,0,0]],["MLH1",2230,179.6,[10000,10000,10000,10000,9596,3193,40,0,0,0]],["MMP12",1390,179.5,[10000,10000,10000,10000,9633,3338,0,0,0,0]],["MSH2",2770,161.2,[10000,10000,9986,9906,9249,1870,0,0,0,0]],["MT-ND6",523,5.0,[4455,0,0,0,0,0,0,0,0,0]],["NADK2",1302,152.8,[10000,9923,9593,9278,8441,1951,0,0,0,0]],["NBEAL1",8059,150.5,[9895,9895,9895,9888,8928,1063,0,0,0,0]],["NBPF20",16664,23.9,[907,806,735,723,673,536,353,216,104,0]],["NF1",8401,158.7,[9758,9758,9758,9750,8969,1870,21,0,0,0]],["NGDN",923,188.6,[10000,10000,10000,10000,9675,4063,0,0,0,0]],["NOTCH2NLR",812,140.8,[10000,10000,10000,9975,7463,1404,0,0,0,0]],["NRG2",2530,165.5,[10000,9945,9834,9660,8360,3229,233,0,0,0]],["OGFOD2",1036,233.1,[10000,10000,10000,10000,10000,6882,1178,0,0,0]],["OR2A5",931,277.1,[10000,10000,10000,10000,10000,8034,3888,816,0,0]],["OR51A7",934,153.8,[10000,10000,10000,10000,10000,1221,0,0,0,0]],["OR52D1",952,211.2,[10000,10000,10000,10000,9821,5924,0,0,0,0]],["PAGR1",756,111.9,[10000,10000,10000,9973,7275,0,0,0,0,0]],["PAIP2B",363,132.5,[10000,10000,10000,9614,6281,468,0,0,0,0]],["PCTP",630,154.7,[10000,10000,10000,10000,7952,2841,0,0,0,0]],["PDZRN4",3088,162.1,[10000,9926,9851,9735,9032,2931,0,0,0,0]],["PIAS2",1835,182.6,[10000,10000,10000,9956,8719,4365,0,0,0,0]],["PIP5K1B",1596,171.1,[10000,10000,10000,10000,8985,2519,0,0,0,0]],["PPIAL4C",490,0.0,[0,0,0,0,0,0,0,0,0,0]],["PPIAL4D",490,0.4,[41,0,0,0,0,0,0,0,0,0]],["PRAMEF20",1419,398.0,[10000,10000,10000,10000,10000,9894,8851,4595,1029,0]],["PRAMEF7",1416,187.6,[5946,5946,5946,5819,5177,4527,3326,1695,685,0]],["PRR20B",659,0.0,[0,0,0,0,0,0,0,0,0,0]],["PSD2",2285,210.3,[10000,10000,10000,10000,9934,5225,915,96,0,0]],["PSMB6",705,210.7,[10000,10000,10000,10000,10000,6199,298,0,0,0]],["PTEN",1191,159.1,[10000,10000,10000,10000,9001,1713,0,0,0,0]],["RAB33A",707,161.2,[10000,10000,10000,10000,10000,297,0,0,0,0]],["RAB6C",760,126.2,[10000,9803,8263,7592,5000,2711,0,0,0,0]],["RAET1L",730,239.8,[10000,10000,8890,8562,8493,7027,3589,534,0,0]],["RAP1B",540,116.8,[10000,10000,10000,9944,6982,19,0,0,0,0]],["RARA",1370,184.7,[10000,10000,10000,9920,8949,3577,642,0,0,0]],["RB1",2730,187.4,[10000,10000,10000,10000,9542,3623,396,0,0,0]],["REN",1198,158.3,[10000,10000,10000,10000,7988,2187,459,0,0,0]],["RGS2",623,119.9,[10000,10000,10000,10000,5875,995,0,0,0,0]],["RNASE1",466,249.9,[10000,10000,10000,10000,10000,8369,1180,0,0,0]],["RP1-137D17.4",682,148.0,[7698,7698,7698,7698,7698,3563,0,0,0,0]],["RP11-1035H13.3",697,92.9,[6930,6930,6930,6930,6026,0,0,0,0,0]],["RP11-438F14.11",420,165.2,[7119,7119,7119,7119,7047,3690,2214,0,0,0]],["RP9",651,133.0,[10000,10000,8909,8295,7020,1090,0,0,0,0]],["RPL31",367,0.3,[0,0,0,0,0,0,0,0,0,0]],["RPS5",602,227.2,[10000,10000,10000,10000,10000,8007,449,0,0,0]],["RUNX3",1235,193.6,[10000,10000,10000,10000,9903,4364,154,0,0,0]],["RXFP4",1120,232.2,[10000,10000,10000,10000,10000,7571,848,0,0,0]],["SAMD7",1324,184.8,[10000,10000,10000,10000,9736,4049,0,0,0,0]],["SCN1A",5975,185.1,[10000,10000,10000,10000,9518,3280,924,0,0,0]],["SDK1",6549,211.8,[9750,9721,9698,9669,9542,5943,913,0,0,0]],["SIGLEC14",1174,284.6,[8603,8339,8024,7734,6737,6227,5468,3671,1976,0]],["SLC27A2",1840,190.1,[10000,10000,10000,10000,9859,3402,125,0,0,0]],["SLC30A8",1091,217.6,[10000,10000,10000,10000,9991,6242,321,0,0,0]],["SLC9B2",1589,164.9,[10000,10000,10000,10000,9377,2014,0,0,0,0]],["SMR3B",233,251.6,[10000,10000,8455,7768,7768,7683,4593,301,0,0]],["SNX19",2954,202.8,[10000,10000,10000,10000,9675,5139,443,0,0,0]],["SOX4",1420,136.7,[10000,9979,9592,8521,6979,1577,0,0,0,0]],["SPATA20",2372,171.9,[10000,10000,10000,10000,9726,2563,8,0,0,0]],["SSU72P7",580,58.8,[5707,5293,5172,4793,2448,0,0,0,0,0]],["STAT5A",2346,169.4,[10000,9970,9851,9412,7775,3431,648,0,0,0]],["SWAP70",1731,178.6,[10000,10000,10000,10000,9746,3524,0,0,0,0]],["TAB1",1490,218.6,[10000,10000,10000,10000,9866,5496,1530,0,0,0]],["TAF3",2773,182.6,[9697,9574,9488,9437,8843,4302,635,0,0,0]],["TBX15",1790,162.6,[10000,10000,10000,9961,8073,3201,173,0,0,0]],["TENT5D",1165,103.9,[10000,10000,10000,10000,6077,0,0,0,0,0]],["TEX28",1222,0.0,[0,0,0,0,0,0,0,0,0,0]],["TIMM44",1330,212.0,[10000,10000,10000,10000,9887,5556,744,0,0,0]],["TMEM231",934,216.7,[10000,9390,8640,8201,8062,6081,3287,0,0,0]],["TMEM240",511,187.0,[10000,10000,10000,10000,9961,4657,0,0,0,0]],["TMIE",460,138.7,[7717,7717,7717,7717,7652,2261,0,0,0,0]],["TMLHE",1249,103.5,[8903,8863,8607,8022,6533,0,0,0,0,0]],["TP53",1159,187.6,[10000,10000,10000,10000,9819,2908,0,0,0,0]],["TRIL",2431,193.5,[10000,10000,10000,10000,9803,4122,609,0,0,0]],["TRIM51GP",1344,114.0,[9286,9286,9286,8854,3810,2262,0,0,0,0]],["TRMT61A",861,219.2,[10000,10000,10000,10000,9884,5958,917,0,0,0]],["TSPY8",912,0.3,[0,0,0,0,0,0,0,0,0,0]],["TTLL8",2474,233.6,[10000,10000,10000,10000,9915,7377,946,0,0,0]],["UCK1",817,202.1,[10000,10000,10000,10000,9780,5422,380,0,0,0]],["UHRF1BP1L",4350,129.9,[10000,10000,10000,9993,8023,501,0,0,0,0]],["USP17L8",1588,0.3,[0,0,0,0,0,0,0,0,0,0]],["VHL",633,236.1,[10000,10000,10000,10000,10000,6935,1469,0,0,0]],["VPS37A",1169,177.7,[10000,10000,10000,10000,9743,2310,0,0,0,0]],["WASHC3",568,98.6,[10000,10000,10000,9842,4736,0,0,0,0,0]],["XAGE5",316,78.5,[10000,8070,6076,6076,5253,0,0,0,0,0]],["XKR5",2044,232.1,[10000,10000,10000,10000,10000,7118,1047,0,0,0]],["ZBED1",4160,98.9,[5000,5000,5000,5000,4933,2596,0,0,0,0]],["ZBTB32",1451,215.5,[10000,10000,10000,10000,9869,6258,427,0,0,0]],["ZNF417",1719,147.2,[10000,10000,8644,7539,5783,3351,942,0,0,0]],["ZNF454",1558,165.6,[10000,10000,10000,10000,9499,1681,51,0,0,0]],["ZNF543",1792,260.8,[10000,10000,10000,10000,9911,7210,3398,380,0,0]],["ZNF585B",2299,177.3,[10000,10000,10000,9974,8899,3719,343,0,0,0]],["ZNF679",1225,110.5,[10000,10000,8490,7984,4939,359,0,0,0,0]],["ZNF705D",890,0.1,[0,0,0,0,0,0,0,0,0,0]],["ZNF713",1321,156.4,[10000,10000,10000,10000,8410,1476,0,0,0,0]],["ZNF714",1659,61.1,[8361,7499,4376,3894,3412,0,0,0,0,0]],["ZNF727",1489,88.1,[10000,10000,8576,6219,3976,60,0,0,0,0]],["ZNF804B",4039,135.3,[10000,10000,10000,9921,8916,388,0,0,0,0]],["ZSWIM5",3527,161.7,[9966,9918,9870,9767,8968,2243,150,0,0,0]]],"panels":{"Hereditary breast and ovarian cancer":["BRCA1","BRCA2","TP53","PTEN","MLH1","MSH2","APC"],"ACMG SF predisposition (extract)":["BRCA1","BRCA2","TP53","PTEN","MLH1","MSH2","APC","RB1","VHL","NF1"],"Neurodevelopment (extract)":["MECP2","SCN1A","DMD","NF1"]}};
+
+// ---------- Shared case data ----------
+const PEOPLE = {
+  proband: { label: 'Proband', id: 'DM189234', sex: 'Male', ploidy: 'XY', cont: 0.4, cov: 162, r15: 98.9, unif: 95.2, cnv: 212, cov_f: 1, cov_k: 1, amp: 88, del: 124, dup: 24.3, f80: 1.45, mad: 0.0762 },
+  mother: { label: 'Mother', id: 'DM189235', sex: 'Female', ploidy: 'XX', cont: 0.6, cov: 141, r15: 98.1, unif: 94.1, cnv: 240, cov_f: 0.87, cov_k: 1.6, amp: 101, del: 139, dup: 25.9, f80: 1.51, mad: 0.0815, tf: 0.93 },
+  father: { label: 'Father', id: 'DM189236', sex: 'Male', ploidy: 'XY', cont: 1.1, cov: 118, r15: 96.4, unif: 92.8, cnv: 530, cov_f: 0.72, cov_k: 3, amp: 221, del: 309, dup: 29.8, f80: 1.62, mad: 0.1184, tf: 0.81 },
+  sister: { label: 'Sister', id: 'DM189237', sex: 'Female', ploidy: 'XX', cont: 0.8, cov: 150, r15: 98.5, unif: 94.6, cnv: 226, cov_f: 0.92, cov_k: 1.3, amp: 96, del: 130, dup: 24.9, f80: 1.47, mad: 0.0791, tf: 0.97 }
+};
+PEOPLE.proband.tf = 1;
+const BASE = JSON.parse(JSON.stringify(PEOPLE));
+const FAMILIES = {
+  solo: { label: 'Solo', members: ['proband'] },
+  trio: { label: 'Trio', members: ['proband', 'mother', 'father'] },
+  quatuor: { label: 'Family of 4', members: ['proband', 'mother', 'father', 'sister'] },
+  'mother-sibling': { label: 'Mother + sibling', members: ['proband', 'mother', 'sister'] }
+};
+const plabel = (k) => PEOPLE[k].label + (k === 'proband' && S.fetal ? ' · fetus' : '') + ' (' + PEOPLE[k].id + ')';
+// Scenario overrides. Solo has no relatedness, so a solo identity failure is a sex mismatch,
+// or (fetal, where no sex is declared) contamination likely from maternal cells.
+function scenario() {
+  Object.keys(BASE).forEach((k) => Object.assign(PEOPLE[k], BASE[k]));
+  if (S.fetal) PEOPLE.proband.sex = 'Unknown';
+  if (S.family === 'solo' && failed()) { if (S.fetal) PEOPLE.proband.cont = 7.8; else PEOPLE.proband.ploidy = 'XX'; }
+}
+const sexSt = (k) => (PEOPLE[k].sex === 'Unknown' ? null : (PEOPLE[k].sex === 'Male' ? 'XY' : 'XX') === PEOPLE[k].ploidy ? 'p' : 'f');
+const contSt = (k) => (PEOPLE[k].cont > 5 ? 'f' : PEOPLE[k].cont > 2 ? 'w' : 'p');
+const ICON = {
+  w: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5"/><path d="M12 16.5h.01"/></svg>',
+  f: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6"/><path d="m15 9-6 6"/></svg>',
+  u: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>'
+};
+const SR = { w: 'Warning', f: 'Fail', u: 'Not defined' };
+// Value + status chip. st: 'p' / null = plain value
+const vs = (st, text, title) => (!st || st === 'p')
+  ? '<span class="num"' + (title ? ' title="' + esc(title) + '"' : '') + '>' + text + '</span>'
+  : '<span class="vs num ' + st + '" title="' + esc(SR[st] + (title ? ' · ' + title : '')) + '">' + ICON[st] + '<span style="position:absolute;left:-9999px">' + SR[st] + ': </span>' + text + '</span>';
+
+// ---------- State ----------
+const DEFAULT_GC = () => ({ sample: 'proband', depthIdx: 1, cutoff: 1, q: '', panel: '', uploaded: false, statusF: '', page: 0, allDepths: false, open: { AKR1B15: true }, selMode: 'picked', selIds: {}, sorts: [] });
+const DEFAULT = () => ({ view: 'overview', identity: 'fail', family: 'quatuor', fetal: false, lang: 'en', demoOpen: true, ov: { open: false }, gc: DEFAULT_GC(), tech: { sample: 'proband', showKeys: false } });
+let S = DEFAULT();
+const VIEWS = ['overview', 'genes', 'metrics'];
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const failed = () => S.identity === 'fail';
+const members = () => FAMILIES[S.family].members;
+const culprit = () => (!failed() ? null : S.family === 'solo' ? 'proband' : S.family === 'mother-sibling' ? 'sister' : 'father');
+const INFO = '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg>';
+const DL = '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12"/><path d="m6 10 6 6 6-6"/><path d="M4 20h16"/></svg>';
+const WARN = '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#b42318" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px"><path d="M12 3 2 21h20L12 3z"/><path d="M12 10v5"/><path d="M12 18h.01"/></svg>';
+const opts = (list, val) => list.map(([v, l]) => '<option value="' + esc(v) + '"' + (String(v) === String(val) ? ' selected' : '') + '>' + esc(l) + '</option>').join('');
+
+// ---------- Shell ----------
+function shell(body) {
+  const v = S.view;
+  const soloShort = S.fetal ? 'Contamination above the 5% fail limit.' : 'Declared sex does not match measured sex.';
+  const soloLong = S.fetal
+    ? 'Contamination is 7.8%, above the 5% fail limit. In a fetal sample this often points to maternal cells. Results for this case are not reliable until this is resolved.'
+    : 'Declared sex is male, but measured sex (ploidy) is XX. Possible sample swap. Results for this case are not reliable until this is resolved.';
+  const short = { solo: soloShort, trio: 'Not related to the proband.', quatuor: 'Not related to either child.', 'mother-sibling': 'Not related to the proband or the mother.' }[S.family];
+  const long = {
+    solo: soloLong,
+    trio: 'Not related to the proband: relatedness 0.03, expected ≥ 0.35. Possible sample swap or non-paternity. Trio-based results (de novo, inheritance) are not reliable until this is resolved.',
+    quatuor: 'Not related to either child: 0.03 with the proband, 0.04 with the sister, expected ≥ 0.35. The mother matches both children, so the father sample is the likely problem. Possible sample swap or non-paternity.',
+    'mother-sibling': 'Not related to the proband or the mother: 0.04 and 0.03, expected ≥ 0.35. The proband matches the mother, so the sister sample is the likely problem. Possible sample swap.'
+  }[S.family];
+  const text = v === 'overview' ? long : short + ' ' + (v === 'genes' ? 'Coverage for this sample may describe the wrong person.' : 'Metrics below may describe the wrong person.');
+  const banner = failed()
+    ? '<div class="alert" role="alert">' + WARN + '<div><p style="margin:0"><b>Identity check failed · ' + esc(plabel(culprit())) + '</b></p><p style="margin:4px 0 0">' + text + '</p></div><button type="button" class="btn" data-act="goIdentity">See identity checks</button></div>'
+    : '';
+  const sub = [['overview', 'Overview'], ['genes', 'Gene coverage'], ['metrics', 'Metric details']]
+    .map(([k, l]) => '<a class="btn" href="#' + k + '" data-act="view" data-v="' + k + '"' + (k === v ? ' aria-current="page"' : '') + '>' + l + '</a>').join('');
+  return '<div class="row-between"><div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center"><span style="font-size:20px;font-weight:700">Case 1042</span><span class="pill ghost">Germline · ' + (S.family === 'solo' ? 'Solo' : 'Family') + '</span>' + (S.fetal ? '<span class="pill ghost">Prenatal</span>' : '') + '<span class="pill ghost">WXS</span><span class="pill ghost">In Progress</span></div></div>'
+    + '<nav class="tabs" aria-label="Case tabs"><span>Details</span><span>Variants</span><span class="on">QC' + (failed() ? '<span class="dot" aria-label="Identity failure"></span>' : '') + '</span><span>Files</span></nav>'
+    + banner
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap" role="navigation" aria-label="QC views">' + sub + '</div>'
+    + body;
+}
+
+// ---------- Overview (board D) ----------
+const ZC = { p: 'var(--zone-p)', w: 'var(--zone-w)', f: 'var(--zone-f)', u: 'repeating-linear-gradient(45deg,#c5ccd3 0 2px,#eef0f2 2px 5px)' };
+const zones = (list) => list.map(([k, a, b]) => '<i style="left:' + a + '%;width:' + (b - a) + '%;background:' + ZC[k] + '"></i>').join('');
+const posv = (v, min, max) => Math.max(0, Math.min(100, (v - min) / (max - min) * 100));
+
+function overview() {
+  const fail = failed(), fam = S.family, open = S.ov.open, seq = members(), bad = culprit();
+  const short = { proband: 'P', mother: 'M', father: 'F', sister: 'S' };
+  const kids = fam === 'trio' ? [['proband', 260]] : [['proband', 190], ['sister', 330]];
+  const people = [['father', 170, 10], ['mother', 350, 10]].concat(kids.map(([k, x]) => [k, x, 112]));
+  const nodes = people.map(([k, x, y]) => {
+    const s = seq.includes(k), female = PEOPLE[k].sex === 'Female', b = k === bad;
+    const border = !s ? '2px dashed #9aa4ad' : b ? '2px solid #b42318' : '2px solid #1f2933';
+    // Fetus with no declared sex: diamond (pedigree convention for unknown sex)
+    const fetus = k === 'proband' && S.fetal;
+    const geo = fetus ? 'left:' + (x - 13) + 'px;top:' + (y + 4) + 'px;width:26px;height:26px;transform:rotate(45deg)' : 'left:' + (x - 17) + 'px;top:' + y + 'px';
+    return '<span class="nd" style="' + geo + ';border:' + border + ';border-radius:' + (female ? '50%' : '0') + ';background:' + (k === 'proband' ? '#1f2933' : '#fff') + '"></span>'
+      + (k === 'proband' ? '<span class="ar" aria-hidden="true" style="left:' + (x - 40) + 'px;top:' + (y + 18) + 'px">↗</span>' : '')
+      + '<span class="lb" style="left:' + (x - 60) + 'px;top:' + (y + 38) + 'px"><span style="' + (b ? 'color:#b42318;font-weight:700' : k === 'proband' ? 'font-weight:700' : '') + '">' + PEOPLE[k].label + '</span><br><span style="color:var(--muted);font-size:12px">' + (fetus ? 'Fetus · ' : '') + (s ? PEOPLE[k].id : 'Not sequenced') + '</span></span>';
+  }).join('');
+  const ln = (l, t, w, h) => '<span class="ln" style="left:' + l + 'px;top:' + t + 'px;width:' + w + 'px;height:' + h + 'px"></span>';
+  const lines = ln(187, 26, 146, 2) + (fam === 'trio' ? ln(259, 27, 2, 85) : ln(259, 27, 2, 54) + ln(190, 80, 140, 2) + ln(189, 81, 2, 31) + ln(329, 81, 2, 31));
+
+  const kin = {
+    pc: { expected: 'Parent – child · ≥ 0.35', z: [['f', 0, 33.33], ['u', 33.33, 58.33], ['p', 58.33, 100]], st: (v) => v >= 0.35 ? 'p' : v < 0.20 ? 'f' : 'u' },
+    sib: { expected: 'Siblings · ≥ 0.35', z: [['f', 0, 33.33], ['u', 33.33, 58.33], ['p', 58.33, 100]], st: (v) => v >= 0.35 ? 'p' : v < 0.20 ? 'f' : 'u' },
+    un: { expected: 'Unrelated · < 0.20', z: [['p', 0, 33.33], ['u', 33.33, 58.33], ['f', 58.33, 100]], st: (v) => v < 0.20 ? 'p' : v >= 0.35 ? 'f' : 'u' }
+  };
+  const badF = bad === 'father', badS = bad === 'sister';
+  const vals = { PM: 0.49, PF: badF ? 0.03 : 0.51, MF: 0.02, SM: badS ? 0.03 : 0.50, SF: badF ? 0.04 : 0.50, PS: badS ? 0.04 : 0.48 };
+  const defs = fam === 'trio' ? [['proband', 'mother', 'pc', 'PM'], ['proband', 'father', 'pc', 'PF'], ['mother', 'father', 'un', 'MF']]
+    : fam === 'quatuor' ? [['proband', 'mother', 'pc', 'PM'], ['proband', 'father', 'pc', 'PF'], ['sister', 'mother', 'pc', 'SM'], ['sister', 'father', 'pc', 'SF'], ['proband', 'sister', 'sib', 'PS'], ['mother', 'father', 'un', 'MF']]
+      : [['proband', 'mother', 'pc', 'PM'], ['sister', 'mother', 'pc', 'SM'], ['proband', 'sister', 'sib', 'PS']];
+  const ST = { p: 'Pass', f: 'Fail', u: 'Not defined' };
+  const pairs = defs.map(([a, b, k, key]) => ({ a, b, k, v: vals[key], s: kin[k].st(vals[key]) })).sort((x, y) => (x.s === 'f' ? 0 : 1) - (y.s === 'f' ? 0 : 1));
+  const nFail = pairs.filter((p) => p.s === 'f').length;
+  const pairRows = pairs.map((p) => '<tr' + (p.s === 'f' ? ' style="background:#fff7f6"' : '') + '><td>' + PEOPLE[p.a].label + ' – ' + PEOPLE[p.b].label + '</td><td style="color:var(--muted)">' + kin[p.k].expected + '</td><td><span class="fsw" title="' + kin[p.k].expected + '"><span class="fs">' + zones(kin[p.k].z) + '</span><b style="left:' + posv(p.v, 0, 0.6) + '%"></b></span></td><td class="vc">' + vs(p.s, p.v.toFixed(2)) + '</td></tr>').join('');
+
+  const contZ = [['p', 0, 25], ['w', 25, 62.5], ['f', 62.5, 100]];
+  const contMax = Math.max(...seq.map((k) => PEOPLE[k].cont));
+  const sampleRows = seq.map((k) => '<tr' + (sexSt(k) === 'f' || contSt(k) === 'f' ? ' style="background:#fff7f6"' : '') + '><td>' + plabel(k) + '</td><td' + (PEOPLE[k].sex === 'Unknown' ? ' style="color:var(--muted)"' : '') + '>' + PEOPLE[k].sex + '</td><td class="vc">' + vs(sexSt(k), PEOPLE[k].ploidy, sexSt(k) ? 'Must match declared sex' : 'No declared sex to compare') + '</td><td><span class="fsw"><span class="fs">' + zones(contZ) + '</span><b style="left:' + posv(PEOPLE[k].cont, 0, 8) + '%"></b></span></td><td class="vc">' + vs(contSt(k), PEOPLE[k].cont.toFixed(1) + '%', 'Warning > 2% · Fail > 5%') + '</td></tr>').join('');
+
+  const mdefs = [
+    { name: 'Mean coverage', rule: 'Fail < 100x', key: 'cov', fmt: (v) => v + 'x', min: 0, max: 200, z: [['f', 0, 50], ['p', 50, 100]], warn: () => false },
+    { name: 'Region ≥ 15x', rule: 'Fail < 95%', key: 'r15', fmt: (v) => v + '%', min: 90, max: 100, z: [['f', 0, 50], ['p', 50, 100]], warn: () => false },
+    { name: 'Uniformity', rule: 'Warning < 93.91%', key: 'unif', fmt: (v) => v + '%', min: 88, max: 100, z: [['w', 0, 49.25], ['p', 49.25, 100]], warn: (v) => v < 93.91 },
+    { name: 'CNVs passing filters', rule: 'Warning > 504', key: 'cnv', fmt: (v) => String(v), min: 0, max: 800, z: [['p', 0, 63], ['w', 63, 100]], warn: (v) => v > 504 }
+  ];
+  const verdict = (k) => (PEOPLE[k].unif < 93.91 || PEOPLE[k].cnv > 504 ? 'w' : 'p');
+  const warnCount = seq.filter((k) => verdict(k) === 'w').length;
+  const seqHead = '<tr><th>Indicator</th>' + seq.map((k) => '<th class="vc">' + plabel(k) + '</th>').join('') + '</tr>';
+  const seqRows = '<tr><td>Verdict</td>' + seq.map((k) => '<td class="vc"><span class="pill ' + verdict(k) + '">' + (verdict(k) === 'w' ? 'Warning' : 'Pass') + '</span></td>').join('') + '</tr>'
+    + mdefs.map((d) => '<tr><td>' + d.name + '<br><span style="font-size:12px;color:var(--muted)">' + d.rule + '</span></td>' + seq.map((k) => {
+      const v = PEOPLE[k][d.key];
+      return '<td class="vc" style="white-space:nowrap"><span style="display:inline-block;min-width:56px">' + vs(d.warn(v) ? 'w' : 'p', d.fmt(v), d.rule) + '</span><span class="msw" title="' + d.rule + '"><span class="ms">' + zones(d.z) + '</span><b style="left:' + posv(v, d.min, d.max) + '%"></b></span></td>';
+    }).join('') + '</tr>').join('');
+
+  const solo = fam === 'solo';
+  const showFamily = !solo && (fail || open), showSex = open || (solo && fail);
+  const toggle = '<button type="button" class="lnk" aria-expanded="' + open + '" data-act="ovToggle">' + (open ? 'Hide checks' : 'Show checks') + '</button>';
+
+  const g = geneView({ sample: 'proband', depthIdx: 1, cutoff: 1, q: '', panel: '', uploaded: false, statusF: '' });
+  const gc = g.counts;
+
+  return '<section id="identity" class="card"' + (fail ? ' style="border:2px solid #b42318"' : '') + ' aria-labelledby="idh">'
+    + '<div class="row-between"><div><h2 class="h2" id="idh">Identity</h2><p class="sub">' + (solo ? 'Is this sample the right person?' : 'Is each sample the right person?') + '</p></div><span class="pill ' + (fail ? 'f' : 'p') + '">' + (fail && solo ? 'Fail' : fail ? 'Fail · ' + nFail + (nFail > 1 ? ' pairs' : ' pair') : 'Pass') + '</span></div>'
+    + (!fail ? '<div class="row-between" style="margin-top:10px"><span style="color:var(--muted)">' + (solo ? 'Sex and contamination pass. Relatedness is not checked in a solo analysis.' : 'Sex, contamination and relatedness pass for ' + seq.length + ' samples.') + '</span>' + toggle + '</div>' : '')
+    + (showFamily ? '<p class="cap">Family</p><div style="margin-top:10px;padding:14px 8px 6px;background:#f8f9fa;border-radius:6px;overflow-x:auto"><div class="ped">' + lines + nodes + '</div></div>'
+      + '<p class="cap">Relatedness · ' + pairs.length + ' pairs</p><div class="scroll" style="margin-top:8px;border:1px solid var(--line-soft);border-radius:6px"><table class="tbl" style="min-width:640px"><thead><tr><th>Pair</th><th>Expected</th><th style="width:300px">Relatedness<span class="tk"><span style="left:0">0</span><span style="left:33.33%">0.20</span><span style="left:58.33%">0.35</span><span style="left:100%">0.60</span></span></th><th class="vc">Value</th></tr></thead><tbody>' + pairRows + '</tbody></table></div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:8px"><span class="key" style="font-size:12px;color:var(--muted)"><i style="background:var(--zone-p)"></i>Pass</span><span class="key" style="font-size:12px;color:var(--muted)"><i style="background:var(--zone-f)"></i>Fail</span><span class="key" style="font-size:12px;color:var(--muted)"><i style="background:' + ZC.u + '"></i>Not defined yet (0.20–0.35) · waiting on the lab</span></div>'
+      + (fail ? '<div class="row-between" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line-soft)"><span style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px"><span class="pill p">Pass</span> Sex and contamination pass for ' + seq.length + ' samples <span style="color:var(--muted)">· Contamination, highest ' + contMax.toFixed(1) + '%</span><span class="msw" title="One mark per sample · warn > 2%, fail > 5%"><span class="ms">' + zones(contZ) + '</span>' + seq.map((k) => '<b style="left:' + posv(PEOPLE[k].cont, 0, 8) + '%"></b>').join('') + '</span></span>' + toggle + '</div>' : '')
+      : '')
+    + (showSex ? '<p class="cap">Sex and contamination</p><div class="scroll" style="margin-top:8px;border:1px solid var(--line-soft);border-radius:6px"><table class="tbl" style="min-width:760px"><thead><tr><th>Sample</th><th>Sex declared</th><th class="vc">Sex measured (ploidy)</th><th style="width:300px">Contamination<span class="tk"><span style="left:0">0%</span><span style="left:25%">2%</span><span style="left:62.5%">5%</span><span style="left:100%">8%</span></span></th><th class="vc">Value</th></tr></thead><tbody>' + sampleRows + '</tbody></table></div>'
+      + (S.fetal ? '<p class="sub" style="margin-top:8px">No sex is declared for the fetus, so measured sex is shown without a check.</p>' : '') : '')
+    + '</section>'
+    + '<section class="card' + (fail ? ' dim' : '') + '" aria-labelledby="sqh"><div class="row-between"><div><h2 class="h2" id="sqh">Sequencing quality</h2><p class="sub">Did sequencing work for each person? Bars show where each value sits against its threshold.</p></div><span class="pill ' + (warnCount ? 'w' : 'p') + '">' + (warnCount ? 'Warning · ' + warnCount + (warnCount > 1 ? ' samples' : ' sample') : 'Pass') + '</span></div>'
+    + '<div class="scroll" style="margin-top:14px"><table class="tbl" style="min-width:640px"><thead>' + seqHead + '</thead><tbody>' + seqRows + '</tbody></table></div></section>'
+    + '<section class="card' + (fail ? ' dim' : '') + '" aria-labelledby="gch"><div class="row-between"><div><h2 class="h2" id="gch">Gene coverage</h2><p class="sub">' + plabel('proband') + ' · All genes · 15x on 100% of bases · ' + g.base.length + ' genes</p></div><a class="btn" href="#genes" data-act="view" data-v="genes">Open gene coverage</a></div>'
+    + '<div role="img" aria-label="' + gc.p + ' pass, ' + gc.w + ' warning, ' + gc.f + ' fail, ' + gc.u + ' unmappable" style="display:flex;height:14px;border-radius:3px;overflow:hidden;margin-top:14px;gap:2px">' + ['p', 'w', 'f', 'u'].map((k) => '<span style="flex:' + gc[k] + ' 1 0;background:var(--bar-' + k + ')"></span>').join('') + '</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:10px">' + ['p', 'w', 'f', 'u'].map((k) => '<a href="#genes" data-act="geneStatus" data-s="' + k + '" style="text-decoration:none"><span class="key"><i style="background:var(--bar-' + k + ')"></i><strong class="num">' + gc[k] + '</strong> ' + NAME[k] + '</span></a>').join('') + '</div></section>';
+}
+
+// ---------- Gene coverage (board E) ----------
+const DEPTHS = [5, 15, 30, 50, 100, 200, 300, 400, 500, 1000];
+const NAME = { p: 'Pass', w: 'Warning', f: 'Fail', u: 'Unmappable' };
+const ORDER = ['f', 'w', 'u', 'p'];
+const UP = ['BRCA1', 'NF1', 'CFTR', 'AKR1B15', 'ACKR4', 'TMIE', 'SOX4', 'CACNA1A', 'BRCA3'];
+const KNOWN = new Set(DATA.genes.map((g) => g[0]));
+
+// Everything that decides which genes are in the table, so filter changes can prune the selection (as in PR 1820)
+function geneView(s) {
+  const P = PEOPLE[s.sample];
+  const all = DATA.genes.map(([gene, size, mean, p]) => ({ gene, size, mean: mean * P.cov_f, pct: p.map((x) => Math.pow(x / 10000, P.cov_k)) }));
+  const statusOf = (g) => {
+    if (g.mean < 5 || g.pct[0] < 0.10) return 'u';
+    const v = g.pct[s.depthIdx];
+    return v >= s.cutoff - 1e-9 ? 'p' : v >= 0.90 ? 'w' : 'f';
+  };
+  let base = all;
+  if (s.q) base = base.filter((g) => g.gene.toUpperCase().includes(s.q.toUpperCase()));
+  if (s.panel) { const ps = new Set(DATA.panels[s.panel]); base = base.filter((g) => ps.has(g.gene)); }
+  if (s.uploaded) { const us = new Set(UP); base = base.filter((g) => us.has(g.gene)); }
+  base = base.map((g) => Object.assign(g, { s: statusOf(g) }));
+  const counts = { p: 0, w: 0, f: 0, u: 0 };
+  base.forEach((g) => { counts[g.s]++; });
+  const list = s.statusF ? base.filter((g) => g.s === s.statusF) : base.slice();
+  return { base, list, counts };
+}
+const visibleKeys = (dIdx, showAll) => ['gene', 'size', 'mean'].concat(DEPTHS.map((d, i) => 'd' + i).filter((k, i) => showAll || i === dIdx));
+const keepVisible = (sorts, dIdx, showAll) => { const v = visibleKeys(dIdx, showAll); return sorts.filter((x) => v.includes(x.k)); };
+// Round down so a gene short of 100% never reads 100.0
+const pct1 = (v) => (Math.floor(v * 1000 + 1e-6) / 10).toFixed(1);
+const wm = (l) => { const sz = l.reduce((a, g) => a + g.size, 0); return sz ? Math.round(l.reduce((a, g) => a + g.mean * g.size, 0) / sz) + 'x' : '—'; };
+const isSel = (gene) => (S.gc.selMode === 'all' ? !S.gc.selIds[gene] : !!S.gc.selIds[gene]);
+let GC = null; // last computed gene table, used by the click handlers
+
+function setGc(o) {
+  const g = S.gc, next = Object.assign({}, g, o);
+  const n = { page: 0 };
+  if (o.sample !== undefined && o.sample !== g.sample) { n.selMode = 'picked'; n.selIds = {}; }
+  else {
+    const names = new Set(geneView(next).list.map((x) => x.gene));
+    const kept = {};
+    Object.keys(g.selIds).forEach((x) => { if (names.has(x)) kept[x] = true; });
+    n.selIds = kept;
+  }
+  if (o.depthIdx !== undefined) n.sorts = keepVisible(g.sorts, o.depthIdx, g.allDepths);
+  S.gc = Object.assign(next, n, o);
+}
+
+function genes() {
+  const g = S.gc;
+  const { depthIdx, cutoff, statusF, allDepths } = g;
+  const { base, list, counts } = geneView(g);
+  const sorts = keepVisible(g.sorts, depthIdx, allDepths);
+  const cutPct = Math.round(cutoff * 100);
+  const cutLabel = cutoff >= 1 ? '100%' : '≥ ' + cutPct + '%';
+  const val = { gene: (x) => x.gene, size: (x) => x.size, mean: (x) => x.mean };
+  DEPTHS.forEach((d, i) => { val['d' + i] = (x) => x.pct[i]; });
+  list.sort((a, b) => {
+    for (const x of sorts) {
+      const va = val[x.k](a), vb = val[x.k](b);
+      const c = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
+      if (c) return x.desc ? -c : c;
+    }
+    return ORDER.indexOf(a.s) - ORDER.indexOf(b.s) || a.pct[depthIdx] - b.pct[depthIdx] || a.gene.localeCompare(b.gene);
+  });
+  const LABEL = { gene: 'Gene', size: 'Size', mean: 'Mean cov.' };
+  DEPTHS.forEach((d, i) => { LABEL['d' + i] = '% ≥ ' + d + 'x'; });
+  const sortText = sorts.length ? 'sorted by ' + sorts.map((x) => LABEL[x.k] + (x.desc ? ' ↓' : ' ↑')).join(', then ') : 'worst first';
+  const PER = 20;
+  const pages = Math.max(1, Math.ceil(list.length / PER));
+  const pg = Math.min(g.page, pages - 1);
+  const slice = list.slice(pg * PER, pg * PER + PER);
+  const pageIds = slice.map((x) => x.gene);
+  const pageFull = pageIds.length > 0 && pageIds.every(isSel);
+  const pageSome = pageIds.some(isSel);
+  const selected = list.filter((x) => isSel(x.gene));
+  const canSelectAll = g.selMode === 'picked' && pageFull && list.length > pageIds.length;
+  GC = { pageIds, pageFull, sorts };
+  const shown = DEPTHS.map((d, i) => i).filter((i) => allDepths || i === depthIdx);
+  const FRAME = 'box-shadow:inset 1px 0 0 #1f2933,inset -1px 0 0 #1f2933';
+  const TINT = { w: 'background:var(--warn-bg);color:var(--warn-fg)', f: 'background:var(--fail-bg);color:var(--fail-fg)' };
+  const ruleLines = [['Pass', cutLabel + ' of bases at ≥ ' + DEPTHS[depthIdx] + 'x']].concat(cutoff > 0.9 ? [['Warning', '90% to under ' + cutPct + '%']] : []).concat([['Fail', 'under 90%'], ['Unmappable', 'mean under 5x, or under 10% of bases at ≥ 5x. Checked first.']])
+    .map(([k, v]) => '<span><strong>' + k + '</strong> ' + v + '</span>').join('');
+  const head = (k, label, cls) => {
+    const x = sorts.find((y) => y.k === k);
+    return '<th' + (cls ? ' class="' + cls + '"' : '') + ' aria-sort="' + (x ? (x.desc ? 'descending' : 'ascending') : 'none') + '"><button type="button" class="sb" data-on="' + !!x + '" title="' + (x ? (x.desc ? 'Descending' : 'Ascending') : 'Sort') + '" data-act="sort" data-k="' + k + '">' + label + '<i aria-hidden="true">' + (x ? (x.desc ? '↓' : '↑') : '⇅') + '</i></button></th>';
+  };
+  const depthHeads = shown.map((i) => {
+    const x = sorts.find((y) => y.k === 'd' + i), crit = i === depthIdx;
+    return '<th class="r" style="' + (crit && allDepths ? FRAME : '') + '" aria-sort="' + (x ? (x.desc ? 'descending' : 'ascending') : 'none') + '"><span style="display:inline-flex;align-items:center;gap:4px">'
+      + (crit ? '<span class="tip"><button type="button" aria-label="How gene statuses are set" aria-describedby="pct-tip">' + INFO + '</button><span class="bubble right" role="tooltip" id="pct-tip">' + ruleLines + '</span></span>' : '')
+      + '<button type="button" class="sb" data-on="' + !!x + '" title="' + (x ? (x.desc ? 'Descending' : 'Ascending') : 'Sort') + '" data-act="sort" data-k="d' + i + '">% ≥ ' + DEPTHS[i] + 'x<i aria-hidden="true">' + (x ? (x.desc ? '↓' : '↑') : '⇅') + '</i></button></span></th>';
+  }).join('');
+  const P = PEOPLE[g.sample];
+  const AKR = [[197, 159], [183, 167], [226, 173], [150, 2], [256, 169]];
+  const rows = slice.map((x) => {
+    const unm = x.s === 'u', open = !!g.open[x.gene], on = isSel(x.gene);
+    const cells = shown.map((i) => {
+      const v = x.pct[i];
+      const k = unm || i > depthIdx || v >= cutoff - 1e-9 ? '' : v >= 0.90 ? 'w' : 'f';
+      const crit = i === depthIdx;
+      return '<td class="num r" style="' + (k ? TINT[k] : crit ? 'color:var(--ink)' : 'color:var(--muted)') + (crit ? ';font-weight:650' + (allDepths ? ';' + FRAME : '') : '') + '">' + pct1(v) + '</td>';
+    }).join('');
+    let exon = '';
+    if (open) {
+      const ex = x.gene === 'AKR1B15'
+        ? AKR.map(([bp, c], i) => { const bad = c * P.cov_f < DEPTHS[depthIdx]; return '<span style="flex:' + bp + ' 1 0;background:' + (bad ? '#f4b4ae' : '#bfe5cb') + ';color:' + (bad ? '#b42318' : '#1b6b38') + (bad ? ';box-shadow:inset 0 0 0 2px #b42318' : '') + '">' + (i + 1) + ' · ' + Math.round(c * P.cov_f) + 'x</span>'; })
+        : [3, 2, 4, 2, 3, 5].map((w, i) => '<span style="flex:' + w + ' 1 0;background:#e6e9ec;color:var(--muted)">' + (i + 1) + '</span>');
+      const nBad = x.gene === 'AKR1B15' ? ex.filter((e) => e.includes('#b42318')).length : 0;
+      exon = '<tr><td></td><td colspan="' + (5 + shown.length) + '" style="padding:4px 10px 14px"><div style="border:1px dashed var(--faint);border-radius:6px;padding:12px 14px;background:#fafbfc"><div class="row-between" style="align-items:baseline"><span style="font-size:13px;font-weight:650">Exon detail · ' + x.gene + ' <span style="font-weight:400;color:var(--muted)">' + (x.gene === 'AKR1B15' ? '· ' + nBad + ' of 5 exons out of criteria (simulated)' : '· placeholder, no exon data in the mockup') + '</span></span><span class="pill ghost">Later release</span></div><div class="ex" role="img" aria-label="Exon strip">' + ex.join('') + '</div><p style="margin:8px 0 0;font-size:12px;color:var(--muted)">Width = exon size · colour = exon status at the current criteria. Then: per-exon table, copy under-covered regions as BED.</p></div></td></tr>';
+    }
+    return '<tr><td><button type="button" class="cb" role="checkbox" aria-checked="' + on + '" aria-label="Select ' + x.gene + '" data-act="selRow" data-g="' + esc(x.gene) + '">' + (on ? '✓' : '') + '</button></td>'
+      + '<td><span class="gc"><strong>' + esc(x.gene) + '</strong><span>' + (x.s !== 'p' ? '<span class="pill ' + x.s + '">' + NAME[x.s] + '</span>' : '') + '</span></span></td>'
+      + '<td class="num r">' + x.size.toLocaleString('en-CA') + '</td><td class="num r">' + x.mean.toFixed(1) + 'x</td>' + cells
+      + '<td style="white-space:nowrap"><a href="#genes" class="tl">SNV</a> · <a href="#genes" class="tl">CNV</a> · <a href="#genes" class="tl">IGV</a></td>'
+      + '<td><button type="button" class="chev" aria-expanded="' + open + '" aria-label="' + (open ? 'Hide' : 'Show') + ' exon detail for ' + esc(x.gene) + '" data-act="exon" data-g="' + esc(x.gene) + '">' + (open ? '▾' : '▸') + '</button></td></tr>' + exon;
+  }).join('');
+  const total = base.length, nSel = selected.length;
+  const panelNames = Object.keys(DATA.panels);
+  const pageCheck = pageFull ? 'true' : pageSome ? 'mixed' : 'false';
+  const chip = (k, label, n) => '<button type="button" class="seg" aria-pressed="' + (statusF === k) + '" data-act="statusF" data-s="' + k + '">' + (k ? '<i style="background:var(--bar-' + k + ')"></i>' : '') + '<strong class="num">' + n + '</strong>' + label + '</button>';
+
+  return '<section class="card" aria-label="Sample, filters and criteria">'
+    + '<div style="display:flex;flex-wrap:wrap;gap:16px 24px;align-items:flex-end">'
+    + '<label class="fld" style="flex:0 1 240px">Sample<select class="in" id="gc-sample" data-in="gcSample">' + opts(members().map((k) => [k, plabel(k)]), g.sample) + '</select></label>'
+    + '<div style="flex:1 1 520px;display:flex;flex-wrap:wrap;gap:12px 16px;align-items:flex-end;padding-left:24px;border-left:1px solid var(--line-soft);min-width:0">'
+    + '<label class="fld" style="flex:1 1 180px">Gene<input class="in" id="gc-q" type="search" placeholder="Search a gene symbol" value="' + esc(g.q) + '" data-in="gcQ"></label>'
+    + '<label class="fld" style="flex:1 1 220px">Panel<select class="in" id="gc-panel" data-in="gcPanel">' + opts([['', 'All genes in the analysis']].concat(panelNames.map((n) => [n, n + ' (' + DATA.panels[n].filter((x) => KNOWN.has(x)).length + ' of ' + DATA.panels[n].length + ')'])), g.panel) + '</select></label>'
+    + (g.uploaded
+      ? '<span class="pill ghost" style="display:inline-flex;align-items:center;gap:6px;padding:6px 6px 6px 10px;font-size:13px;color:var(--ink)">my_genes.txt · ' + UP.filter((x) => KNOWN.has(x)).length + ' genes<span style="color:var(--warn-fg)">· ' + UP.filter((x) => !KNOWN.has(x)).length + ' not found</span><button type="button" class="chev" style="width:24px;height:24px" aria-label="Remove uploaded list" data-act="upload">✕</button></span>'
+      : '<button type="button" class="btn" data-act="upload"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="m6 10 6-6 6 6"/><path d="M4 20h16"/></svg>Upload gene list</button>')
+    + '</div></div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:12px 16px;align-items:flex-end;margin-top:16px;padding-top:14px;border-top:1px solid var(--line-soft)">'
+    + '<p class="cap" style="flex:0 0 100%;margin:0;display:flex;align-items:center;gap:4px">QC criteria <span class="tip"><button type="button" aria-label="How gene statuses are set" aria-describedby="crit-tip">' + INFO + '</button><span class="bubble" role="tooltip" id="crit-tip">' + ruleLines + '</span></span></p>'
+    + '<label class="fld" style="flex:0 1 140px">Minimum depth<select class="in" id="gc-depth" data-in="gcDepth">' + opts(DEPTHS.map((d, i) => [i, d + 'x']), depthIdx) + '</select></label>'
+    + '<label class="fld" style="flex:0 1 160px">Bases at that depth<select class="in" id="gc-cut" data-in="gcCut">' + opts([[1, '100%'], [0.98, '≥ 98%'], [0.95, '≥ 95%'], [0.9, '≥ 90%']], cutoff) + '</select></label>'
+    + (depthIdx !== 1 || cutoff !== 1 ? '<button type="button" class="lnk" data-act="resetCriteria">Reset to lab default (15x on 100%)</button>' : '')
+    + '</div></section>'
+
+    + '<section class="card" aria-labelledby="sumh"><div class="row-between" style="align-items:baseline"><h2 class="h2" id="sumh">' + total + ' genes · ' + DEPTHS[depthIdx] + 'x on ' + cutLabel + ' of bases</h2><span style="font-size:13px;color:var(--muted)">' + plabel(g.sample) + ' · weighted mean coverage <strong class="num" style="color:var(--ink)">' + wm(base) + '</strong></span></div>'
+    + '<div role="img" aria-label="' + ORDER.map((k) => counts[k] + ' ' + NAME[k]).join(', ') + '" style="display:flex;height:14px;border-radius:3px;overflow:hidden;margin-top:12px;gap:2px;background:var(--line-soft)">' + ['p', 'w', 'f', 'u'].filter((k) => counts[k]).map((k) => '<span style="flex:' + counts[k] + ' 1 0;min-width:3px;background:var(--bar-' + k + ')"></span>').join('') + '</div>'
+    + '<div role="group" aria-label="Filter the table by status" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">' + chip('', 'All', total) + ORDER.map((k) => chip(k, NAME[k], counts[k])).join('') + '</div></section>'
+
+    + '<section class="card" style="padding:0" aria-labelledby="tblh">'
+    + '<div class="row-between" style="padding:14px 20px"><h2 class="h2" id="tblh">Genes <span style="font-weight:400;color:var(--muted);font-size:14px">· ' + list.length + (statusF ? ' ' + NAME[statusF].toLowerCase() : '') + ' · ' + sortText + '</span>' + (sorts.length ? ' <button type="button" class="lnk" style="font-size:13px" data-act="resetSort">Reset sort</button>' : '') + '</h2>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">'
+    + (nSel ? '<span style="font-size:13px"><strong>' + nSel.toLocaleString('en-CA') + (nSel === 1 ? ' item selected' : ' items selected') + '</strong> · weighted mean <span class="num">' + wm(selected) + '</span></span>' + (canSelectAll ? '<button type="button" class="lnk" data-act="selectAll">Select all</button>' : '<button type="button" class="lnk" data-act="clearSel">Clear selection</button>') : '')
+    + '<button type="button" class="btn" aria-pressed="' + allDepths + '" data-act="toggleDepths">' + (allDepths ? 'Hide other depths' : 'Show all depths') + '</button>'
+    + '<button type="button" class="btn">' + DL + (nSel ? 'Export selected (CSV)' : 'Export (CSV)') + '</button></div></div>'
+    + '<div class="scroll" style="border-top:1px solid var(--line)"><table class="tbl gtbl"><thead><tr>'
+    + '<th style="width:28px"><button type="button" class="cb" role="checkbox" aria-checked="' + pageCheck + '" aria-label="Select all rows on this page" data-act="selPage">' + (pageFull ? '✓' : pageSome ? '–' : '') + '</button></th>'
+    + head('gene', 'Gene') + head('size', 'Size (bp)', 'r') + head('mean', 'Mean cov.', 'r') + depthHeads
+    + '<th>Open in</th><th style="width:40px"><span style="position:absolute;left:-9999px">Exon detail</span></th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+    + (list.length ? '' : '<p style="margin:0;padding:20px;color:var(--muted)">No gene matches these filters.</p>')
+    + '<div class="row-between" style="padding:10px 20px;border-top:1px solid var(--line-soft);font-size:13px;color:var(--muted)"><span>' + (list.length ? 'Results ' + (pg * PER + 1) + ' - ' + (pg * PER + slice.length) + ' of ' + list.length : '') + '</span><div style="display:flex;gap:8px"><button type="button" class="btn" data-act="page" data-d="-1"' + (pg === 0 ? ' disabled' : '') + '>Previous</button><button type="button" class="btn" data-act="page" data-d="1"' + (pg >= pages - 1 ? ' disabled' : '') + '>Next</button></div></div>'
+    + '</section>';
+}
+
+// ---------- Metric details (board F) ----------
+function technical() {
+  const t = S.tech, k = t.sample, s = PEOPLE[k], f = s.tf;
+  const n = (v) => Math.round(v).toLocaleString('en-CA');
+  const M = (v) => [(v / 1e6).toFixed(1) + 'M', n(v)];
+  const fem = s.ploidy === 'XX', sst = sexSt(k);
+  const m = (label, key, value, th) => ({ label, key, value, th });
+  const panels = [
+    { id: 'aln', title: 'Alignment and reads', source: 'DRAGEN', rows: [
+      m('Total reads', 'Total input reads', M(247482880 * f)),
+      m('Mapped reads', 'Mapped reads', M(245349673 * f)),
+      m('Unique reads (excl. duplicates)', 'Number of unique reads (excl. duplicate marked reads)', M(188835099 * f)),
+      m('Properly paired reads', 'Properly paired reads', M(243665858 * f)),
+      m('Estimated contamination', 'Estimated sample contamination', s.cont.toFixed(1) + '%', { rule: 'Warning > 2% · Fail > 5%', st: s.cont > 5 ? 'f' : s.cont > 2 ? 'w' : 'p' }),
+      m('Read length', 'Estimated read length', '101'),
+      m('Insert size (median)', 'Insert length: median', String(Math.round(134 + (1 - f) * 20))),
+      m('Reads with MAPQ ≥ 40', 'Reads with MAPQ [40:inf)', M(225359925 * f)),
+      m('Duplicate reads', 'PCT_EXC_DUPE (Picard)', s.dup.toFixed(1) + '%')
+    ] },
+    { id: 'cov', title: 'Coverage and uniformity', source: 'DRAGEN · QC region', rows: [
+      m('Mean coverage', 'Average alignment coverage over QC coverage region', s.cov + 'x', { rule: 'Fail < 100x', st: s.cov < 100 ? 'f' : 'p' }),
+      m('Median autosomal coverage', 'Median autosomal coverage over QC coverage region', Math.round(s.cov * 1.006) + 'x'),
+      m('Mean / median ratio', 'Mean/Median autosomal coverage ratio over QC coverage region', '0.99'),
+      m('Region ≥ 15x', 'PCT of QC coverage region with coverage [15x: inf)', s.r15.toFixed(1) + '%', { rule: 'Fail < 95%', st: s.r15 < 95 ? 'f' : 'p' }),
+      m('Region ≥ 20x', 'PCT of QC coverage region with coverage [20x: inf)', (s.r15 - 0.2).toFixed(1) + '%'),
+      m('Region ≥ 50x', 'PCT of QC coverage region with coverage [50x: inf)', (s.r15 - 1.3 - (1 - f) * 6).toFixed(1) + '%'),
+      m('Region ≥ 100x', 'PCT of QC coverage region with coverage [100x: inf)', (88.2 - (1 - f) * 60).toFixed(1) + '%'),
+      m('Uniformity (> 0.2 × mean)', 'Uniformity of coverage (PCT > 0.2*mean) over QC coverage region', (97.6 - (1 - f) * 6).toFixed(1) + '%'),
+      m('Uniformity (> 0.4 × mean)', 'Uniformity of coverage (PCT > 0.4*mean) over QC coverage region', s.unif.toFixed(1) + '%', { rule: 'Warning < 93.91%', st: s.unif < 93.91 ? 'w' : 'p' })
+    ] },
+    { id: 'enr', title: 'Capture enrichment', source: 'Picard', rows: [
+      m('Mean target coverage', 'MEAN_TARGET_COVERAGE', (179.8 * s.cov / 162).toFixed(1) + 'x'),
+      m('Median target coverage', 'MEDIAN_TARGET_COVERAGE', Math.round(175 * s.cov / 162) + 'x'),
+      m('Fold-80 base penalty', 'FOLD_80_BASE_PENALTY', s.f80.toFixed(2)),
+      m('Fold enrichment', 'FOLD_ENRICHMENT', (48.0 * (0.9 + f / 10)).toFixed(1)),
+      m('Selected bases', 'PCT_SELECTED_BASES', (82.5 * (0.95 + f / 20)).toFixed(1) + '%'),
+      m('Off-bait bases', 'PCT_OFF_BAIT', (100 - 82.5 * (0.95 + f / 20)).toFixed(1) + '%'),
+      m('Zero-coverage targets', 'ZERO_CVG_TARGETS_PCT', (0.67 / f).toFixed(2) + '%'),
+      m('AT dropout', 'AT_DROPOUT', (3.17 / f).toFixed(2)),
+      m('GC dropout', 'GC_DROPOUT', '0.00')
+    ] },
+    { id: 'sex', title: 'Sex and ploidy', source: 'DRAGEN', rows: [
+      m('Declared sex', 'Case data', s.sex),
+      m('Estimated ploidy', 'Ploidy estimation', s.ploidy, sst ? { rule: 'Must match declared sex', st: sst } : null),
+      m('X / autosomal ratio', 'X / Autosomal ratio', fem ? '1.01' : '0.66'),
+      m('Y / autosomal ratio', 'Y / Autosomal ratio', fem ? '0.00' : '0.49')
+    ] },
+    { id: 'var', title: 'Variants', source: 'DRAGEN · gVCF', rows: [
+      m('Total', 'Total', n(492828 * (0.96 + f / 25))),
+      m('SNVs', 'SNPs', n(408419 * (0.96 + f / 25))),
+      m('Insertions', 'Insertions', n(39326 * (0.96 + f / 25))),
+      m('Deletions', 'Deletions', n(43006 * (0.96 + f / 25))),
+      m('Ti/Tv ratio', 'Ti/Tv ratio', (2.32 - (1 - f) * 0.3).toFixed(2)),
+      m('Het/Hom ratio', 'Het/Hom ratio', (0.90 + (1 - f) * 0.4).toFixed(2)),
+      m('Callable QC region', 'Percent QC Region Callability in Region 1', (98.8 - (1 - f) * 5).toFixed(1) + '%')
+    ] },
+    { id: 'cnv', title: 'CNV', source: 'DRAGEN', rows: [
+      m('CNVs passing filters', 'Number of passing amplifications + deletions', String(s.amp + s.del), { rule: 'Warning > 504', st: s.amp + s.del > 504 ? 'w' : 'p' }),
+      m('Amplifications (passing / total)', 'Number of passing amplifications / Number of amplifications', s.amp + ' / ' + Math.round(s.amp * 1.2)),
+      m('Deletions (passing / total)', 'Number of passing deletions / Number of deletions', s.del + ' / ' + Math.round(s.del * 1.27)),
+      m('Segments', 'Number of segments', n(10798 / f)),
+      m('Coverage MAD', 'Coverage MAD', s.mad.toFixed(4))
+    ] },
+    { id: 'run', title: 'Sequencing run', source: 'LIMS', rows: [
+      m('Run', 'runName', '20260629_LH00336_0448_B23LFFTLT3'),
+      m('Flowcell', 'flowcell', 'B23LFFTLT3'),
+      m('Sequencer', 'sequencer', 'LH00336'),
+      m('Sequencing date', 'sequencingDate', '2026-06-29'),
+      m('Capture kit', 'captureKit', 'Roche HyperExomeV2')
+    ] }
+  ];
+  const flags = [];
+  const cards = panels.map((p) => '<section class="card" style="padding:16px 18px" aria-labelledby="' + p.id + '-h"><div class="row-between" style="flex-wrap:nowrap"><h2 class="h3" id="' + p.id + '-h">' + p.title + '</h2><span class="src">' + p.source + '</span></div><dl class="dl">'
+    + p.rows.map((r, i) => {
+      const st = r.th ? r.th.st : null, flagged = st && st !== 'p', rid = p.id + '-' + i;
+      if (flagged) flags.push({ label: r.label, href: rid, s: st });
+      const val = Array.isArray(r.value) ? r.value : [r.value, ''];
+      const color = st === 'f' ? 'var(--fail-fg)' : st === 'w' ? 'var(--warn-fg)' : '';
+      return '<div class="mrow' + (flagged ? ' f' + st : '') + '" id="' + rid + '"><dt title="' + esc(t.showKeys ? r.label : r.key) + '"' + (t.showKeys ? '' : ' data-notr-title') + '>' + (t.showKeys ? '<span class="mkey">' + esc(r.key) + '</span>' : esc(r.label)) + '</dt>'
+        + '<dd><span>' + (flagged ? '<span class="pill ' + st + '">' + NAME[st] + '</span>' : '') + '<span class="num"' + (flagged ? ' style="color:' + color + ';font-weight:700"' : '') + (val[1] ? ' title="' + val[1] + '"' : '') + '>' + esc(val[0]) + '</span></span>'
+        + (flagged ? '<span class="rule" style="color:' + color + '">' + r.th.rule + '</span>' : '') + '</dd></div>';
+    }).join('') + '</dl></section>').join('');
+  const worst = flags.some((x) => x.s === 'f') ? 'f' : flags.length ? 'w' : 'p';
+  return '<section class="card" style="padding:16px 20px" aria-label="Sample">'
+    + '<div class="row-between" style="align-items:flex-end"><label class="fld" style="width:240px;max-width:100%">Sample<select class="in" id="tech-sample" data-in="techSample">' + opts(members().map((x) => [x, plabel(x)]), k) + '</select></label>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center"><label style="display:inline-flex;align-items:center;gap:8px;font-size:13px;min-height:36px"><input type="checkbox" id="tech-keys" data-in="techKeys"' + (t.showKeys ? ' checked' : '') + ' style="width:16px;height:16px;margin:0">Show metric names</label><button type="button" class="btn" title="' + s.id + '.QC_report.json">' + DL + 'Download Dragen report (JSON)</button></div></div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--line-soft)"><span class="pill ' + worst + '">' + NAME[worst] + '</span><span>' + (flags.length ? flags.length + (flags.length > 1 ? ' metrics outside' : ' metric outside') + ' lab thresholds:' : 'All thresholded metrics within lab limits.') + '</span>'
+    + flags.map((x) => '<a href="#metrics" data-act="jump" data-id="' + x.href + '" style="font-weight:600;font-size:13px">' + x.label + '</a>').join('') + '</div></section>'
+    + '<div class="grid3">' + cards + '</div>';
+}
+
+// ---------- Prototype controls ----------
+function demo() {
+  if (!S.demoOpen) return '<button type="button" class="demo-min" data-act="demoOpen">Prototype controls</button>';
+  const sg = (act, cur, list) => '<div class="sg">' + list.map(([v, l]) => '<button type="button" aria-pressed="' + (cur === v) + '" data-act="' + act + '" data-v="' + v + '">' + l + '</button>').join('') + '</div>';
+  return '<aside class="demo" aria-label="Prototype controls"><header><span>Prototype controls</span><button type="button" data-act="demoClose" aria-label="Hide prototype controls">Hide</button></header><div class="body">'
+    + '<div class="opt">Language' + sg('setLang', S.lang, [['en', 'EN'], ['fr', 'FR']]) + '</div>'
+    + '<div class="opt">Identity check' + sg('setIdentity', S.identity, [['pass', 'Pass'], ['fail', 'Fail']]) + '</div>'
+    + '<label class="opt">Family<select class="in" id="demo-family" data-in="demoFamily">' + opts(Object.keys(FAMILIES).map((k) => [k, FAMILIES[k].label]), S.family) + '</select></label>'
+    + '<div class="opt">Fetal analysis' + sg('setFetal', S.fetal ? 'on' : 'off', [['off', 'Off'], ['on', 'On']]) + '</div>'
+    + '<button type="button" class="btn" data-act="resetDemo" style="justify-content:center">Reset prototype</button>'
+    + '<p class="hint">Not part of the design. Press H to hide or show.</p></div></aside>';
+}
+
+// ---------- Language (EN / FR) ----------
+// Prototype only: the English UI is translated after each render with one EN → FR dictionary.
+// FR vocabulary: Radiant's common/fr.json first, then the boss's FR mockup. Source metric names stay as-is.
+const FR = {
+  "Details": "Détails",
+  "Variants": "Variants",
+  "Files": "Fichiers",
+  "QC": "QC",
+  "Overview": "Vue d'ensemble",
+  "Gene coverage": "Couverture des gènes",
+  "Metric details": "Détail des métriques",
+  "Case 1042": "Cas 1042",
+  "Germline · Family": "Germinal familial",
+  "Germline · Solo": "Germinal",
+  "Prenatal": "Prénatal",
+  "WXS": "WXS",
+  "In Progress": "En cours",
+  "See identity checks": "Voir les contrôles d'identité",
+  "Identity check failed": "Échec du contrôle d'identité",
+  "Pass": "Conforme",
+  "Warning": "Attention",
+  "Fail": "Échec",
+  "Unmappable": "Non mappable",
+  "Not defined": "Non défini",
+  "Warning:": "Attention :",
+  "Fail:": "Échec :",
+  "Not defined:": "Non défini :",
+  "Proband": "Proband",
+  "Mother": "Mère",
+  "Father": "Père",
+  "Sister": "Sœur",
+  "Not sequenced": "Non séquencé",
+  "Male": "Masculin",
+  "Female": "Féminin",
+  "Unknown": "Inconnu",
+  "Proband – Father": "Proband – Père",
+  "Proband – Mother": "Proband – Mère",
+  "Proband – Sister": "Proband – Sœur",
+  "Sister – Father": "Sœur – Père",
+  "Sister – Mother": "Sœur – Mère",
+  "Mother – Father": "Mère – Père",
+  "Identity": "Identité",
+  "Is each sample the right person?": "Chaque échantillon correspond-il à la bonne personne ?",
+  "Is this sample the right person?": "Cet échantillon correspond-il à la bonne personne ?",
+  "Family": "Famille",
+  "Relatedness": "Parenté",
+  "Pair": "Paire",
+  "Expected": "Attendue",
+  "Value": "Valeur",
+  "Parent – child · ≥ 0.35": "Parent – enfant · ≥ 0.35",
+  "Siblings · ≥ 0.35": "Fratrie · ≥ 0.35",
+  "Unrelated · < 0.20": "Non apparentés · < 0.20",
+  "Not defined yet (0.20–0.35) · waiting on the lab": "Pas encore défini (0.20–0.35) · en attente du laboratoire",
+  "Show checks": "Afficher les contrôles",
+  "Hide checks": "Masquer les contrôles",
+  "Sex and contamination": "Sexe et contamination",
+  "Sample": "Échantillon",
+  "Sex declared": "Sexe déclaré",
+  "Sex measured (ploidy)": "Sexe mesuré (ploïdie)",
+  "Contamination": "Contamination",
+  "Must match declared sex": "Doit correspondre au sexe déclaré",
+  "No declared sex to compare": "Aucun sexe déclaré à comparer",
+  "No sex is declared for the fetus, so measured sex is shown without a check.": "Aucun sexe n'est déclaré pour le fœtus : le sexe mesuré est affiché sans contrôle.",
+  "Sex and contamination pass. Relatedness is not checked in a solo analysis.": "Sexe et contamination conformes. La parenté n'est pas contrôlée dans une analyse solo.",
+  "One mark per sample · warn > 2%, fail > 5%": "Un repère par échantillon · attention > 2 %, échec > 5 %",
+  "Not related to the proband.": "Non apparenté au proband.",
+  "Not related to either child.": "Non apparenté aux deux enfants.",
+  "Not related to the proband or the mother.": "Non apparenté au proband ni à la mère.",
+  "Coverage for this sample may describe the wrong person.": "La couverture de cet échantillon pourrait décrire la mauvaise personne.",
+  "Metrics below may describe the wrong person.": "Les métriques ci-dessous pourraient décrire la mauvaise personne.",
+  "Declared sex does not match measured sex.": "Le sexe déclaré ne correspond pas au sexe mesuré.",
+  "Contamination above the 5% fail limit.": "Contamination au-dessus du seuil d'échec de 5 %.",
+  "Not related to the proband: relatedness 0.03, expected ≥ 0.35.": "Non apparenté au proband : parenté 0.03, attendue ≥ 0.35.",
+  "Possible sample swap or non-paternity.": "Inversion d'échantillons ou non-paternité possible.",
+  "Possible sample swap.": "Inversion d'échantillons possible.",
+  "Trio-based results (de novo, inheritance) are not reliable until this is resolved.": "Les résultats basés sur le trio (de novo, transmission) ne sont pas fiables tant que ce n'est pas résolu.",
+  "Not related to either child: 0.03 with the proband, 0.04 with the sister, expected ≥ 0.35.": "Non apparenté aux deux enfants : 0.03 avec le proband, 0.04 avec la sœur, attendue ≥ 0.35.",
+  "The mother matches both children, so the father sample is the likely problem.": "La mère correspond aux deux enfants : l'échantillon du père est probablement en cause.",
+  "Not related to the proband or the mother: 0.04 and 0.03, expected ≥ 0.35.": "Non apparenté au proband ni à la mère : 0.04 et 0.03, attendue ≥ 0.35.",
+  "The proband matches the mother, so the sister sample is the likely problem.": "Le proband correspond à la mère : l'échantillon de la sœur est probablement en cause.",
+  "Declared sex is male, but measured sex (ploidy) is XX.": "Le sexe déclaré est masculin, mais le sexe mesuré (ploïdie) est XX.",
+  "Results for this case are not reliable until this is resolved.": "Les résultats de ce cas ne sont pas fiables tant que ce n'est pas résolu.",
+  "Contamination is 7.8%, above the 5% fail limit.": "La contamination est de 7.8 %, au-dessus du seuil d'échec de 5 %.",
+  "In a fetal sample this often points to maternal cells.": "Dans un échantillon fœtal, cela indique souvent des cellules maternelles.",
+  "Sequencing quality": "Qualité de séquençage",
+  "Did sequencing work for each person? Bars show where each value sits against its threshold.": "Le séquençage a-t-il fonctionné pour chaque personne ? Les barres situent chaque valeur par rapport à son seuil.",
+  "Indicator": "Indicateur",
+  "Verdict": "Verdict",
+  "Mean coverage": "Couverture moyenne",
+  "Region ≥ 15x": "Région ≥ 15x",
+  "Uniformity": "Uniformité",
+  "CNVs passing filters": "CNV passant les filtres",
+  "Fail < 100x": "Échec < 100x",
+  "Fail < 95%": "Échec < 95 %",
+  "Warning < 93.91%": "Attention < 93.91 %",
+  "Warning > 504": "Attention > 504",
+  "Warning > 2% · Fail > 5%": "Attention > 2 % · Échec > 5 %",
+  "Open gene coverage": "Ouvrir la couverture des gènes",
+  "All genes": "Tous les gènes",
+  "Gene": "Gène",
+  "Panel": "Panel",
+  "Search a gene symbol": "Recherche par gène",
+  "All genes in the analysis": "Tous les gènes de l'analyse",
+  "Upload gene list": "Téléverser une liste de gènes",
+  "Remove uploaded list": "Retirer la liste téléversée",
+  "QC criteria": "Critères de couverture",
+  "How gene statuses are set": "Comment les statuts des gènes sont établis",
+  "Minimum depth": "Profondeur minimale",
+  "Bases at that depth": "Bases à cette profondeur",
+  "Reset to lab default (15x on 100%)": "Réinitialiser au défaut du laboratoire (15x sur 100 %)",
+  "under 90%": "moins de 90 %",
+  "mean under 5x, or under 10% of bases at ≥ 5x. Checked first.": "moyenne sous 5x, ou moins de 10 % des bases à ≥ 5x. Vérifié en premier.",
+  "Filter the table by status": "Filtrer le tableau par statut",
+  "All": "Tous",
+  "Genes": "Gènes",
+  "worst first": "pires en premier",
+  "Reset sort": "Réinitialiser le tri",
+  "Show all depths": "Afficher toutes les profondeurs",
+  "Hide other depths": "Masquer les autres profondeurs",
+  "Export (CSV)": "Exporter (CSV)",
+  "Export selected (CSV)": "Exporter la sélection (CSV)",
+  "Select all": "Tout sélectionner",
+  "Clear selection": "Désélectionner tout",
+  "Select all rows on this page": "Sélectionner la page",
+  "Size (bp)": "Taille (pb)",
+  "Mean cov.": "Couv. moy.",
+  "Open in": "Ouvrir dans",
+  "Exon detail": "Détail des exons",
+  "Sort": "Trier",
+  "Ascending": "Croissant",
+  "Descending": "Décroissant",
+  "No gene matches these filters.": "Aucun gène ne correspond aux filtres.",
+  "Previous": "Précédent",
+  "Next": "Suivant",
+  "Later release": "Version ultérieure",
+  "Exon strip": "Bande des exons",
+  "placeholder, no exon data in the mockup": "espace réservé, aucune donnée d'exon dans la maquette",
+  "Width = exon size · colour = exon status at the current criteria. Then: per-exon table, copy under-covered regions as BED.": "Largeur = taille de l'exon · couleur = statut de l'exon selon les critères actuels. Ensuite : tableau par exon, copie des régions sous-couvertes en BED.",
+  "Neurodevelopment (extract)": "Neurodéveloppement (extrait)",
+  "Hereditary breast and ovarian cancer": "Cancer héréditaire du sein et de l'ovaire",
+  "ACMG SF predisposition (extract)": "Prédispositions ACMG SF (extrait)",
+  "Sample, filters and criteria": "Échantillon, filtres et critères",
+  "Show metric names": "Afficher les noms des métriques",
+  "Download Dragen report (JSON)": "Télécharger le rapport Dragen (JSON)",
+  "All thresholded metrics within lab limits.": "Toutes les métriques à seuil sont dans les limites du laboratoire.",
+  "Alignment and reads": "Alignement et lectures",
+  "Coverage and uniformity": "Couverture et uniformité",
+  "Capture enrichment": "Enrichissement de capture",
+  "Sex and ploidy": "Sexe et ploïdie",
+  "CNV": "CNV",
+  "Sequencing run": "Run de séquençage",
+  "DRAGEN · QC region": "DRAGEN · région QC",
+  "Case data": "Données du cas",
+  "Total reads": "Lectures totales",
+  "Mapped reads": "Lectures alignées",
+  "Unique reads (excl. duplicates)": "Lectures uniques (hors duplicats)",
+  "Properly paired reads": "Paires correctement appariées",
+  "Estimated contamination": "Contamination estimée",
+  "Read length": "Longueur de lecture",
+  "Insert size (median)": "Taille d'insert (médiane)",
+  "Reads with MAPQ ≥ 40": "Lectures avec MAPQ ≥ 40",
+  "Duplicate reads": "Lectures dupliquées",
+  "Median autosomal coverage": "Couverture autosomale médiane",
+  "Mean / median ratio": "Ratio moyenne / médiane",
+  "Region ≥ 20x": "Région ≥ 20x",
+  "Region ≥ 50x": "Région ≥ 50x",
+  "Region ≥ 100x": "Région ≥ 100x",
+  "Uniformity (> 0.2 × mean)": "Uniformité (> 0.2 × moyenne)",
+  "Uniformity (> 0.4 × mean)": "Uniformité (> 0.4 × moyenne)",
+  "Mean target coverage": "Couverture moyenne des cibles",
+  "Median target coverage": "Couverture médiane des cibles",
+  "Fold-80 base penalty": "Pénalité Fold-80",
+  "Fold enrichment": "Facteur d'enrichissement",
+  "Selected bases": "Bases sélectionnées",
+  "Off-bait bases": "Bases hors appât",
+  "Zero-coverage targets": "Cibles à couverture nulle",
+  "AT dropout": "Perte AT",
+  "GC dropout": "Perte GC",
+  "Declared sex": "Sexe déclaré",
+  "Estimated ploidy": "Ploïdie estimée",
+  "X / autosomal ratio": "Ratio X / autosomes",
+  "Y / autosomal ratio": "Ratio Y / autosomes",
+  "Total": "Total",
+  "SNVs": "SNV",
+  "Insertions": "Insertions",
+  "Deletions": "Délétions",
+  "Ti/Tv ratio": "Ratio Ti/Tv",
+  "Het/Hom ratio": "Ratio Het/Hom",
+  "Callable QC region": "Région QC interprétable",
+  "Amplifications (passing / total)": "Amplifications (passant / total)",
+  "Deletions (passing / total)": "Délétions (passant / total)",
+  "Segments": "Segments",
+  "Coverage MAD": "MAD de couverture",
+  "Run": "Run",
+  "Flowcell": "Flowcell",
+  "Sequencer": "Séquenceur",
+  "Sequencing date": "Date de séquençage",
+  "Capture kit": "Trousse de capture",
+  "Prototype controls": "Contrôles du prototype",
+  "Hide prototype controls": "Masquer les contrôles du prototype",
+  "Hide": "Masquer",
+  "Identity check": "Contrôle d'identité",
+  "Fetal analysis": "Analyse fœtale",
+  "Off": "Non",
+  "On": "Oui",
+  "Language": "Langue",
+  "Solo": "Solo",
+  "Trio": "Trio",
+  "Family of 4": "Famille de 4",
+  "Mother + sibling": "Mère + fratrie",
+  "Reset prototype": "Réinitialiser le prototype",
+  "Not part of the design. Press H to hide or show.": "Hors design. Appuyez sur H pour masquer ou afficher.",
+  "Case tabs": "Onglets du cas",
+  "QC views": "Vues QC",
+  "Identity failure": "Échec d'identité",
+  "Warning > 2%": "Attention > 2 %",
+  "Fail > 5%": "Échec > 5 %",
+  "weighted mean coverage": "couverture moyenne pondérée",
+  "weighted mean": "moyenne pondérée",
+  "Fetus": "Fœtus"
+  };
+const FR_STATUS = { warning: 'attention', fail: 'échec', unmappable: 'non mappable', pass: 'conforme' };
+const frPct = (c) => c.replace(/(\d+)%/, '$1 %');
+const FR_RX = [
+  [/^(Proband|Mother|Father|Sister)( · fetus)? \((DM\d+)\)$/, (m, p, f, id) => FR[p] + (f ? ' · fœtus' : '') + ' (' + id + ')'],
+  [/^fetus \((DM\d+)\)$/, (m, id) => 'fœtus (' + id + ')'],
+  [/^(\d+) pairs?$/, (m, n) => n + (n > 1 ? ' paires' : ' paire')],
+  [/^(\d+) samples?$/, (m, n) => n + (n > 1 ? ' échantillons' : ' échantillon')],
+  [/^(\d+) genes$/, (m, n) => n + ' gènes'],
+  [/^(\d+)x on (100%|≥ \d+%) of bases$/, (m, d, c) => d + 'x sur ' + frPct(c) + ' des bases'],
+  [/^(100%|≥ \d+%) of bases at ≥ (\d+)x$/, (m, c, d) => frPct(c) + ' des bases à ≥ ' + d + 'x'],
+  [/^90% to under (\d+)%$/, (m, n) => '90 % à moins de ' + n + ' %'],
+  [/^Sex and contamination pass for (\d+) samples$/, (m, n) => 'Sexe et contamination conformes pour ' + n + ' échantillons'],
+  [/^Sex, contamination and relatedness pass for (\d+) samples\.$/, (m, n) => 'Sexe, contamination et parenté conformes pour ' + n + ' échantillons.'],
+  [/^Contamination, highest ([\d.]+)%$/, (m, v) => 'Contamination, maximum ' + v + ' %'],
+  [/^(\d+) metrics? outside lab thresholds:$/, (m, n) => n + (n > 1 ? ' métriques hors des seuils' : ' métrique hors des seuils') + ' du laboratoire :'],
+  [/^Results (\d+) - (\d+) of (\d+)$/, (m, a, b, c) => 'Résultats ' + a + ' - ' + b + ' de ' + c],
+  [/^([\d,]+) items? selected$/, (m, n) => n + (n === '1' ? ' élément sélectionné' : ' éléments sélectionnés')],
+  [/^(\d+) not found$/, (m, n) => n + (n > 1 ? ' introuvables' : ' introuvable')],
+  [/^(\d+) of 5 exons out of criteria \(simulated\)$/, (m, n) => n + ' exon(s) sur 5 hors critères (simulé)'],
+  [/^(\d+) (warning|fail|unmappable|pass)$/, (m, n, s) => n + ' ' + FR_STATUS[s]],
+  [/^sorted by (.+)$/, (m, s) => 'trié par ' + s.split(', then ').map((x) => { const y = x.match(/^(.*) ([↑↓])$/); return y ? frText(y[1]) + ' ' + y[2] : x; }).join(', puis ')],
+  [/^Select (.+)$/, (m, g) => 'Sélectionner ' + g],
+  [/^(Show|Hide) exon detail for (.+)$/, (m, a, g) => (a === 'Show' ? 'Afficher' : 'Masquer') + ' le détail des exons de ' + g],
+  [/^(.+) \((\d+) of (\d+)\)$/, (m, p, a, b) => frText(p) + ' (' + a + ' sur ' + b + ')'],
+  [/^\d+ (Fail|Warning|Unmappable|Pass|fail|warning|unmappable|pass)(, \d+ \w+)+$/, (m) => m.split(', ').map((x) => x.replace(/^(\d+) (\w+)$/, (z, n, st) => n + ' ' + FR_STATUS[st.toLowerCase()])).join(', ')]
+];
+// Exact match, then patterns, then ' · ' segments, then sentences
+function frText(s) {
+  if (FR[s] !== undefined) return FR[s];
+  for (const [rx, fn] of FR_RX) { const m = s.match(rx); if (m) return fn(...m); }
+  if (s.startsWith('· ')) return '· ' + frText(s.slice(2));
+  if (s.includes(' · ')) return s.split(' · ').map(frText).join(' · ');
+  const parts = s.split(/(?<=[.:]) (?=[A-Z])/);
+  if (parts.length > 1) return parts.map(frText).join(' ');
+  return s;
+}
+function frSpan(v) { const m = v.match(/^(\s*)([\s\S]*?)(\s*)$/); return m[2] ? m[1] + frText(m[2]) + m[3] : v; }
+function translate(root) {
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let n;
+  while ((n = w.nextNode())) { if (!n.parentElement.closest('.mkey')) n.nodeValue = frSpan(n.nodeValue); }
+  root.querySelectorAll('[title],[aria-label],[placeholder]').forEach((e) => ['title', 'aria-label', 'placeholder'].forEach((a) => {
+    if (e.hasAttribute(a) && !(a === 'title' && e.hasAttribute('data-notr-title'))) e.setAttribute(a, frText(e.getAttribute(a)));
+  }));
+}
+
+// ---------- Render + events ----------
+const app = document.getElementById('app');
+const demoEl = document.getElementById('demo');
+function render() {
+  const a = document.activeElement;
+  const focusId = a && a.id ? a.id : null;
+  const caret = a && a.selectionStart != null ? [a.selectionStart, a.selectionEnd] : null;
+  scenario();
+  const body = S.view === 'genes' ? genes() : S.view === 'metrics' ? technical() : overview();
+  app.innerHTML = shell(body);
+  demoEl.innerHTML = demo();
+  document.documentElement.lang = S.lang;
+  if (S.lang === 'fr') { translate(app); translate(demoEl); }
+  if (focusId) { const el = document.getElementById(focusId); if (el) { el.focus(); if (caret && el.setSelectionRange) try { el.setSelectionRange(caret[0], caret[1]); } catch (e) {} } }
+}
+function go(view, scrollTo) {
+  S.view = view;
+  try { if (location.hash !== '#' + view) history.replaceState(null, '', '#' + view); } catch (e) {}
+  render();
+  const el = scrollTo && document.getElementById(scrollTo);
+  if (el) el.scrollIntoView({ block: 'start' }); else window.scrollTo(0, 0);
+}
+function fixSamples() {
+  const ms = members();
+  if (!ms.includes(S.gc.sample)) setGc({ sample: 'proband' });
+  if (!ms.includes(S.tech.sample)) S.tech.sample = 'proband';
+}
+const ACT = {
+  view: (d) => go(d.v),
+  goIdentity: () => { S.ov.open = true; go('overview', 'identity'); },
+  ovToggle: () => { S.ov.open = !S.ov.open; render(); },
+  geneStatus: (d) => { setGc({ statusF: d.s }); go('genes'); },
+  statusF: (d) => { setGc({ statusF: d.s }); render(); },
+  upload: () => { setGc({ uploaded: !S.gc.uploaded }); render(); },
+  resetCriteria: () => { setGc({ depthIdx: 1, cutoff: 1 }); render(); },
+  toggleDepths: () => { const g = S.gc; g.sorts = keepVisible(g.sorts, g.depthIdx, !g.allDepths); g.allDepths = !g.allDepths; render(); },
+  sort: (d) => {
+    const k = d.k, sorts = GC.sorts, x = sorts.find((y) => y.k === k), firstDesc = k !== 'gene';
+    S.gc.sorts = !x ? sorts.concat([{ k, desc: firstDesc }]) : x.desc === firstDesc ? sorts.map((y) => (y.k === k ? { k, desc: !y.desc } : y)) : sorts.filter((y) => y.k !== k);
+    S.gc.page = 0; render();
+  },
+  resetSort: () => { S.gc.sorts = []; S.gc.page = 0; render(); },
+  selRow: (d) => { applyPage([d.g], !isSel(d.g)); render(); },
+  selPage: () => { applyPage(GC.pageIds, !GC.pageFull); render(); },
+  selectAll: () => { S.gc.selMode = 'all'; S.gc.selIds = {}; render(); },
+  clearSel: () => { S.gc.selMode = 'picked'; S.gc.selIds = {}; render(); },
+  exon: (d) => { S.gc.open = Object.assign({}, S.gc.open, { [d.g]: !S.gc.open[d.g] }); render(); },
+  page: (d) => { S.gc.page += Number(d.d); render(); document.getElementById('tblh').scrollIntoView({ block: 'start' }); },
+  jump: (d) => { const el = document.getElementById(d.id); if (el) el.scrollIntoView({ block: 'center' }); },
+  setIdentity: (d) => { S.identity = d.v; render(); },
+  setLang: (d) => { S.lang = d.v; render(); },
+  setFetal: (d) => { S.fetal = d.v === 'on'; render(); },
+  setFamily: (d) => { S.family = d.v; fixSamples(); render(); },
+  resetDemo: () => { S = Object.assign(DEFAULT(), { lang: S.lang }); go('overview'); },
+  demoOpen: () => { S.demoOpen = true; render(); },
+  demoClose: () => { S.demoOpen = false; render(); }
+};
+function applyPage(ids, selected) {
+  const n = Object.assign({}, S.gc.selIds);
+  ids.forEach((id) => { const tracked = S.gc.selMode === 'all' ? !selected : selected; if (tracked) n[id] = true; else delete n[id]; });
+  S.gc.selIds = n;
+}
+const INPUT = {
+  gcSample: (el) => setGc({ sample: el.value }),
+  gcQ: (el) => setGc({ q: el.value }),
+  gcPanel: (el) => setGc({ panel: el.value }),
+  gcDepth: (el) => setGc({ depthIdx: Number(el.value) }),
+  gcCut: (el) => setGc({ cutoff: Number(el.value) }),
+  techSample: (el) => { S.tech.sample = el.value; },
+  techKeys: (el) => { S.tech.showKeys = el.checked; },
+  demoFamily: (el) => { S.family = el.value; fixSamples(); }
+};
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-act]');
+  if (!el || !ACT[el.dataset.act]) { if (e.target.closest('a[href="#genes"].tl')) e.preventDefault(); return; }
+  e.preventDefault();
+  ACT[el.dataset.act](el.dataset);
+});
+document.addEventListener('input', (e) => {
+  const el = e.target.closest('[data-in]');
+  if (el && el.dataset.in === 'gcQ') { INPUT.gcQ(el); render(); }
+});
+document.addEventListener('change', (e) => {
+  const el = e.target.closest('[data-in]');
+  if (!el || el.dataset.in === 'gcQ') return;
+  INPUT[el.dataset.in](el); render();
+});
+document.addEventListener('keydown', (e) => {
+  if ((e.key === 'h' || e.key === 'H') && !e.metaKey && !e.ctrlKey && !e.altKey && !/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) { S.demoOpen = !S.demoOpen; render(); }
+});
+window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (VIEWS.includes(v) && v !== S.view) go(v); });
+const start = location.hash.slice(1);
+if (VIEWS.includes(start)) S.view = start;
+render();
+</script>
+</body>
+</html>
